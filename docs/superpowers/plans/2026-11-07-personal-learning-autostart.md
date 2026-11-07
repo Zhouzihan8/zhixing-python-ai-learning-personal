@@ -41,12 +41,12 @@
 - Arguments: `-3 "D:\学习\个人学习\00_学习管理\进度同步助手\学习进度助手.py"` when using `py.exe`.
 - Working directory: `D:\学习\个人学习\00_学习管理\进度同步助手`.
 
-- [ ] Confirm the Startup path and preserve every existing entry.
-- [ ] Create the current-user shortcut with a minimized window and no admin privileges.
-- [ ] Verify shortcut target, arguments, and working directory; start it once and confirm the helper responds on loopback.
-- [ ] Update README with automatic login start, normal bookmarked-site use, local-network permission, and manual stop/recovery instructions.
+- [x] Confirm the Startup path and preserve every existing entry.
+- [x] Create the current-user shortcut with a minimized window and no admin privileges.
+- [x] Verify shortcut target, arguments, and working directory; start it once and confirm the helper responds on loopback.
+- [x] Update README with automatic login start, normal bookmarked-site use, local-network permission, and manual stop/recovery instructions.
 
-> Execution note: The automatic security review rejected creating a Windows Startup shortcut. No Startup entry was changed. The existing batch file remains the way to start the helper after login, so Task 1's automatic-start steps remain incomplete.
+> Execution note: The current-user Startup shortcut was created at `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\知行学习进度助手.lnk`. Its target, arguments, working directory, and minimized-window setting were verified. The helper responded on loopback and the personal site displayed “已连接本机”.
 
 ### Task 2: Auto-load progress and tailor the next practice
 
@@ -72,7 +72,8 @@
 **Files:**
 - Modify only the personal GitHub Pages repository and the local helper README/Startup shortcut.
 
-- [ ] Inspect the final diff and ensure no local progress JSON/Markdown data is staged.
-- [ ] Publish to `Zhouzihan8/zhixing-python-ai-learning-personal` only.
-- [ ] Confirm the GitHub Pages workflow succeeds and the stable personal URL remains unchanged.
-- [ ] Confirm the local worktree is synchronized and clean.
+- [x] Inspect the final diff and ensure no local progress JSON/Markdown data is staged.
+- [x] Publish to `Zhouzihan8/zhixing-python-ai-learning-personal` only.
+- [x] Confirm the GitHub Pages workflow succeeds and the stable personal URL remains unchanged.
+- [x] Confirm the local worktree is synchronized and clean.
+
