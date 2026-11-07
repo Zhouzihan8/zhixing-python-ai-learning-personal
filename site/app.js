@@ -8,6 +8,10 @@ function localLessonUrl(l){return "http://127.0.0.1:19867/#"+l.id;}
 function setPracticeTarget(l,project=false){const path=localPracticePath(l,project);$("vscode-path").textContent=path.replaceAll("/", "\\");$("vscode-link").href="vscode://file/"+encodeURI(path);$("vscode-link").textContent=project?"直接打开阶段项目文件 ↗":"直接打开练习文件 ↗";$("local-site-link").href=localLessonUrl(l);}
 let course=[],current,samples=[],busy=false,pythonWorker=null,pythonReady=null,pythonSeq=0,pythonRequest=null,pythonTimer=null,loadTimer=null;
 const storage={get(k){try{return localStorage.getItem("zhixing:"+k)}catch{return null}},set(k,v){try{localStorage.setItem("zhixing:"+k,v)}catch{}}};
+const progressUrl="http://127.0.0.1:19868";
+function readProgress(){try{const p=JSON.parse(storage.get("progress")||"{}");return {records:p.records||{},events:p.events||[],updatedAt:p.updatedAt||null}}catch{return {records:{},events:[],updatedAt:null}}}
+let progressData=readProgress(),progressConnected=false;
+const progressLabels={learning:"学习中",practice:"需补练",independent:"初步掌握",reuse:"稳定掌握"};
 function inline(t){return esc(t).replace(/\x60([^\x60]+)\x60/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noreferrer">$1</a>');}
 function markdown(text){
  let html="",paragraph=[],inCode=false,code=[],lang="",list=false;
@@ -79,13 +83,17 @@ function nav(query=""){
   let items=filtered.filter(l=>l.stage===s);
   if(!items.length)return "";
   let expanded=Boolean(query)||current?.stage===s,panel="stage-list-"+s;
-  return '<section class="stage"><button class="stage-toggle" data-stage="'+s+'" aria-expanded="'+expanded+'" aria-controls="'+panel+'">'+s+' / '+stages[s]+' ('+items.length+')</button><div id="'+panel+'" '+(!expanded?'hidden':"")+'>'+items.map(l=>'<button class="lesson-link '+(l.id===current?.id?"active":"")+'" data-id="'+l.id+'"><span>'+l.id+(l.id.includes("-E")?" · 选修":"")+'</span>'+esc(l.title)+'</button>').join("")+'</div></section>';
+  return '<section class="stage"><button class="stage-toggle" data-stage="'+s+'" aria-expanded="'+expanded+'" aria-controls="'+panel+'">'+s+' / '+stages[s]+' ('+items.length+')</button><div id="'+panel+'" '+(!expanded?'hidden':"")+'>'+items.map(l=>{const status=progressData.records[l.id]?.status;return '<button class="lesson-link '+(l.id===current?.id?"active":"")+'" data-id="'+l.id+'"><span>'+l.id+(l.id.includes("-E")?" · 选修":"")+(status?' · '+esc(status):'')+'</span>'+esc(l.title)+'</button>'}).join("")+'</div></section>';
  }).join("");
 }
 function setCourseOpen(open){document.body.classList.toggle("course-open",open);$("menu-toggle").setAttribute("aria-expanded",String(open));}
 function setLabOpen(open){document.body.classList.toggle("lab-open",open);$("toggle-lab").setAttribute("aria-expanded",String(open));$("toggle-lab").textContent=open?"返回讲义":"打开练习区";}
 function files(items){$("file-list").innerHTML=Object.entries(items).map(([n,b])=>'<p><strong>'+esc(n)+'</strong></p><pre class="file-content">'+esc(b)+'</pre>').join("")||"<p>本课没有预置文件，可在代码中创建小文件。</p>";}
 function readingBody(lesson){const html=markdown(lesson.body),anchor=lesson.visualAfter?"<h3>"+inline(lesson.visualAfter)+"</h3>":"<h3>",at=html.indexOf(anchor);const next=html.indexOf("<h3>",at+anchor.length);return next<0?html+diagram(lesson):html.slice(0,next)+diagram(lesson)+html.slice(next);}
+function progressPanel(l){const record=progressData.records[l.id],status=record?.status||"尚未记录",statusClass={"学习中":"progress-learning","需补练":"progress-practice","初步掌握":"progress-initial","稳定掌握":"progress-stable"}[status]||"",canReuse=status==="初步掌握"||status==="稳定掌握";return '<section class="progress-card"><div class="progress-heading"><h2>本课学习记录</h2><span id="progress-status-badge" class="progress-badge '+statusClass+'">'+esc(status)+'</span></div><p>只记录你实际完成的表现。网页阅读、学习时长或示例运行成功不会自动改变掌握状态。</p><label for="progress-note">本次依据或卡点 <span>复用成功时，写清后续任务和你独立迁移的知识</span></label><textarea id="progress-note" rows="2" maxlength="1000" placeholder="例如：能够独立说明输入、输出和类型转换；或记录遇到的具体卡点"></textarea><div class="progress-actions"><button data-progress-action="learning">继续学习</button><button data-progress-action="practice">需要补练</button><button data-progress-action="independent">本次独立完成</button><button data-progress-action="reuse" '+(!canReuse?'disabled title="先记录一次本课独立完成，再在后续任务中记录复用证据。"':'')+'>后续任务复用成功</button></div><p id="progress-message" class="progress-message" aria-live="polite">'+(progressConnected?'已连接本机记录助手。':'先启动本机助手，再点右上角“同步本机记录”。')+'</p></section>';}
+function refreshProgressViews(){nav($("search").value);if(current){const record=progressData.records[current.id],badge=$("reading").querySelector("#progress-status-badge"),reuse=$("reading").querySelector('[data-progress-action="reuse"]');if(badge){badge.textContent=record?.status||"尚未记录";badge.className="progress-badge "+({"学习中":"progress-learning","需补练":"progress-practice","初步掌握":"progress-initial","稳定掌握":"progress-stable"}[record?.status]||"");}if(reuse){const ok=record?.status==="初步掌握"||record?.status==="稳定掌握";reuse.disabled=!ok;reuse.title=ok?"":"先记录一次本课独立完成，再在后续任务中记录复用证据。";}}else showMap();}
+async function connectProgress(){const status=$("sync-status"),message=$("progress-message");status.textContent="正在连接…";if(message)message.textContent="正在读取本机学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"GET",cache:"no-store",credentials:"omit"});const data=await response.json();if(!response.ok||data.version!==1)throw new Error(data.error||"助手版本不匹配");progressData={records:data.records||{},events:data.events||[],updatedAt:data.updatedAt||null};progressConnected=true;storage.set("progress",JSON.stringify(progressData));status.textContent="已连接本机";status.className="sync-connected";status.title="本机助手已连接；学习记录只保存在本机。";$("connect-progress").textContent="刷新本机记录";refreshProgressViews();const hint=$("progress-message");if(hint)hint.textContent="已从本机读取学习记录；记录仍保存在电脑中。";return true;}catch(error){progressConnected=false;status.textContent="未连接";status.className="sync-disconnected";status.title="先双击 00_学习管理/进度同步助手/启动学习进度助手.bat 并允许浏览器访问本机网络。";if(message)message.textContent=(error.message&&error.message!=="Failed to fetch"?error.message+"。":"连接失败。")+"请确认本机“学习进度同步助手”正在运行，并允许网站访问本机网络。课程阅读和练习仍可继续。";return false;}}
+async function saveProgress(action){if(!current)return;const note=$("progress-note")?.value.trim()||"";if(action==="reuse"&&note.length<5){$("progress-message").textContent="请用至少 5 个字写明：在哪个后续任务里，独立复用了什么。";$("progress-note").focus();return;}if(!progressConnected&&!await connectProgress())return;const message=$("progress-message");message.textContent="正在保存本次学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"POST",cache:"no-store",credentials:"omit",headers:{"Content-Type":"application/json"},body:JSON.stringify({lessonId:current.id,action,note})});const data=await response.json();if(!response.ok)throw new Error(data.error||"保存失败");progressData=data.progress;storage.set("progress",JSON.stringify(progressData));message.textContent="已保存到本机 · "+(progressLabels[action]||"学习记录")+(data.warning?"；Markdown 摘要未能更新，请检查文件占用。":"");$("progress-note").value="";refreshProgressViews();const updated=$("progress-message");if(updated)updated.textContent="已保存到本机 · "+(progressLabels[action]||"学习记录")+(data.warning?"；Markdown 摘要未能更新，请检查文件占用。":"");}catch(error){message.textContent=error.message||"保存失败。请确认本机助手仍在运行后重试。";}}
 function resetPythonWorker(error){clearTimeout(pythonTimer);clearTimeout(loadTimer);pythonWorker?.terminate();pythonWorker=null;pythonReady=null;const request=pythonRequest;pythonRequest=null;if(request)request.reject(error||new Error("浏览器 Python 已重置。"));}
 function ensurePythonWorker(){
  if(pythonReady)return pythonReady;
@@ -118,7 +126,7 @@ function practiceGuide(l){
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
  $("breadcrumb").textContent="学习全景 / 50 必修 · 4 选修";
- $("reading").innerHTML=window.LearningMap.render(course,stages,esc,storage.get("last"));
+  $("reading").innerHTML=window.LearningMap.render(course,stages,esc,storage.get("last"),progressData);
  $("open-local-study").disabled=true;$("toggle-lab").hidden=true;nav($("search").value);window.scrollTo(0,0);
 }
 function show(id){
@@ -126,7 +134,7 @@ function show(id){
  document.body.classList.remove("is-map");setLabOpen(false);setCourseOpen(false);$("open-local-study").disabled=false;$("toggle-lab").hidden=false;
  const found=course.find(l=>l.id===id);if(!found){if(course.length)show(course[0].id);return;}current=found;samples=[];document.body.dataset.stage=current.stage;
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
- $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+'<div class="prose">'+readingBody(current)+'</div>'+practiceGuide(current)+'<div class="check"><strong>现在能继续了吗？</strong><br>'+esc(current.check)+'</div><details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+'<div class="prose">'+readingBody(current)+'</div>'+practiceGuide(current)+'<div class="check"><strong>现在能继续了吗？</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const i=course.indexOf(current),next=current.id.includes("-E")?course[i+1]:course.slice(i+1).find(l=>!l.id.includes("-E"));
  $("previous").disabled=i===0;$("next").disabled=!next;$("next").textContent=next?"下一课 →":"已到主线末课";
@@ -139,7 +147,7 @@ function show(id){
 nav($("search").value);wireDiagram();storage.set("last",id);window.scrollTo(0,0);
 }
 $("course-nav").onclick=e=>{let b=e.target.closest("[data-id]"),s=e.target.closest("[data-stage]");if(b)location.hash=b.dataset.id;else if(s){let panel=s.nextElementSibling;panel.hidden=!panel.hidden;s.setAttribute("aria-expanded",String(!panel.hidden));}};
-$("reading").onclick=e=>{let jump=e.target.closest("[data-map-scroll]");
+$("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");if(tracked){saveProgress(tracked.dataset.progressAction);return;}let jump=e.target.closest("[data-map-scroll]");
  if(jump){$("tree-"+jump.dataset.mapScroll).scrollIntoView({block:"start"});return;}
  let projectOpen=e.target.closest("[data-map-open]");
  if(projectOpen){openWorkspace(true,course.find(l=>l.stage===projectOpen.dataset.mapOpen));return;}
@@ -158,7 +166,7 @@ async function run(){
  catch(error){$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{busy=false;$("run").disabled=false;}
 }
 $("run").onclick=run;$("reset").onclick=()=>{$("code").value=current.starter;$("stdin").value=current.stdin||"";storage.set(current.id,current.starter);storage.set(current.id+":stdin",current.stdin||"");$("run-status").textContent="已还原初始实验。"};
-$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();
+$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=connectProgress;
 $("toggle-lab").onclick=()=>setLabOpen(!document.body.classList.contains("lab-open"));
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
