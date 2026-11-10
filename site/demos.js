@@ -15,9 +15,9 @@ window.StudyDemos = (() => {
   if(l.id==="S1-U05")return wrap("一轮一轮看字典累加",'<button id="word-step">处理下一个词</button> <button id="word-reset">重新开始</button>',"固定文本 Python AI Python：每处理一项，观察旧次数如何变成新次数。图解与本课 Python 使用相同计数逻辑。");
   if(["S2-U04","S2-U05"].includes(l.id))return wrap("广播不是把维度随意凑在一起",'<label>B 的形状 <select id="broadcast-shape"><option value="1,3">[1, 3]</option><option value="2,1">[2, 1]</option><option value="2,2">[2, 2]（不兼容）</option></select></label>',"A 固定为 [[1,2,3],[4,5,6]]，形状 [2,3]；从尾部对齐，维度必须相等或其中一个为 1。这里显示逐元素相加，不是矩阵乘法。");
   if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step=".05" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
-  if(["S4-U03","S4-U04","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
+  if(["S4-U03","S4-U04","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
   if(["S5-U03","S5-U04"].includes(l.id))return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
-  if(["S6-U02","S6-U03","S6-U04"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
+  if(["S6-U02","S6-U03","S6-U04"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
   return "";
  }
  function bars(values,labels){
@@ -86,12 +86,12 @@ window.StudyDemos = (() => {
   }
   if(el("query-position")){
    const update=()=>{let q=+el("query-position").value,mask=el("causal-enabled").checked;
-    const qk=[[1,0],[0,1],[1,1]],v=[[1,0],[0,2],[2,1]];
+    const qk=[[1,0],[0,1],[1,1]],v=[[1,0],[0,2],[el("change-last-value").checked?8:2,1]];
     const scores=qk.map(k=>(qk[q][0]*k[0]+qk[q][1]*k[1])/Math.sqrt(2));
     const valid=scores.map((s,i)=>mask&&i>q?-Infinity:s),m=Math.max(...valid),e=valid.map(s=>Math.exp(s-m)),sum=e.reduce((a,b)=>a+b),p=e.map(x=>x/sum);
     const result=[0,1].map(d=>p.reduce((acc,w,i)=>acc+w*v[i][d],0));
     out.innerHTML="<pre>原始缩放分数："+scores.map(num).join(", ")+"\n掩码后："+valid.map(s=>s===-Infinity?"−∞":num(s)).join(", ")+"\n加权输出：["+result.map(num).join(", ")+"]</pre>"+bars(p,["位置 0","位置 1","位置 2"])};
-   el("query-position").onchange=update;el("causal-enabled").onchange=update;update();
+   el("query-position").onchange=update;el("causal-enabled").onchange=update;el("change-last-value").onchange=update;update();
   }
   if(el("temperature")){
    const update=()=>{let t=+el("temperature").value,s=[3,2,1].map(x=>x/t),m=Math.max(...s),e=s.map(x=>Math.exp(x-m)),sum=e.reduce((a,b)=>a+b);out.innerHTML="<p>温度 T = "+t+"</p>"+bars(e.map(x=>x/sum),["候选 A","候选 B","候选 C"])};
@@ -99,9 +99,18 @@ window.StudyDemos = (() => {
   }
   if(el("retrieval-query")){
    const docs=["python 函数 使用 参数 和 返回值","python 列表 用于 保存 多个 元素","注意力 通过 权重 聚合 信息"];
-   const update=()=>{let tokens=new Set(el("retrieval-query").value.trim().split(/\s+/)),ranked=docs.map((text,i)=>({i,text,score:text.split(" ").filter(w=>tokens.has(w)).length})).sort((a,b)=>b.score-a.score);
-    out.innerHTML=ranked.map(r=>"<p>资料 "+(r.i+1)+" · 分数 "+r.score+"<br>"+r.text+"</p>").join("")+(ranked[0].score?"<p>下一步应把相关原文连同资料编号送入提示，并检查回答是否真的得到支持。</p>":"<p>没有重合词，不应假装已有相关依据。</p>")};
-   el("retrieval-query").oninput=update;update();
+   const update=()=>{const tokens=new Set(el("retrieval-query").value.trim().split(/\s+/));
+    const size=Number(el("chunk-size").value);
+    const chunks=docs.flatMap((doc,i)=>{
+     const words=doc.split(" ");
+     return Array.from({length:Math.ceil(words.length/size)},(_,j)=>{
+      const part=words.slice(j*size,(j+1)*size);
+      return {label:(i+1)+"."+(j+1),text:part.join(" "),score:part.filter(w=>tokens.has(w)).length};
+     });
+    });
+    const ranked=chunks.sort((a,b)=>b.score-a.score).slice(0,2);
+    out.innerHTML=ranked.map(r=>"<p>候选片段 "+r.label+" · 分数 "+r.score+"<br>"+r.text+"</p>").join("")+(ranked[0].score?"<p>下一步应把相关原文连同资料编号送入提示，并检查回答是否真的得到支持。</p>":"<p>没有重合词，不应假装已有相关依据。</p>")};
+   el("retrieval-query").oninput=update;el("chunk-size").onchange=update;update();
   }
  }
  return {render,wire};

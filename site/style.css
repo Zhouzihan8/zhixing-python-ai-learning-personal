@@ -68,3 +68,18 @@ body[data-stage] .prose h3{color:var(--stage-ink)}
 
 @media(max-width:650px){.figure:has(svg){overflow-x:auto}.figure svg{min-width:540px}.figure:has(svg) figcaption::after{content:" 图示可横向滑动查看。"}}
 .progress-card select{width:100%;min-height:42px;padding:8px 10px;border:1px solid #cfd9ce;border-radius:5px;background:#fff;color:var(--ink);font:inherit}.progress-last{margin:14px 0;padding:10px 0;border-top:1px solid #dfe6dc}.progress-last p{margin:6px 0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}.progress-last small{color:var(--muted);font-size:11px}.progress-rule{margin:10px 0 0!important;padding-top:8px;border-top:1px solid #dfe6dc;font-size:12px!important}.progress-personal-note{margin:12px 0;padding:10px 0;border-top:1px solid #dce7dc}.progress-personal-note p{margin:5px 0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}.progress-personal-note small{color:var(--muted);font-size:11px}.progress-next{padding-top:8px;border-top:1px solid #dce7dc}
+
+.lesson-extras > section, .lesson-extras > details {
+  margin: 1.25rem 0;
+  padding: 1rem 1.2rem;
+  border: 1px solid #d3dfd1;
+  border-radius: .5rem;
+}
+.lesson-extras summary { cursor: pointer; }
+.lesson-extras h3 { margin-top: 0; }
+.extra-label, .code-context {
+  color: #24584c;
+  font-size: .85rem;
+}
+.code-context { display: block; padding: .45rem .65rem; }
+#lesson-practice { scroll-margin-top: 5rem; }

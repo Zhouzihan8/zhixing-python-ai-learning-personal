@@ -19,7 +19,7 @@ function markdown(text){
  const close=()=>{if(list){html+="</ul>";list=false}};
  for(const line of text.split("\n")){
   const fence=line.match(/^(?:~~~|\x60{3})(.*)$/);
-  if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;html+='<div class="code-sample"><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+"</div>";inCode=false}continue;}
+  if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang);html+='<div class="code-sample"><small class="code-context">'+(browserPython?"网页练习区 · 框架依赖请转到 VS Code":lang==="powershell"?"在本机 PowerShell 运行":lang==="sql"?"在对应数据库客户端运行":"示例片段") +'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+"</div>";inCode=false}continue;}
   if(inCode){code.push(line);continue;}
   if(/^#{1,4}\s/.test(line)){flush();close();html+="<h3>"+inline(line.replace(/^#+\s*/,""))+"</h3>";continue;}
   if(/^\s*[-*]\s/.test(line)){flush();if(!list){html+="<ul>";list=true}html+="<li>"+inline(line.replace(/^\s*[-*]\s/,""))+"</li>";continue;}
@@ -77,8 +77,19 @@ function wireDiagram(){
  if($("slice-start")){const update=()=>{let a=+$("slice-start").value,b=+$("slice-stop").value,norm=n=>Math.min(5,Math.max(0,n<0?5+n:n)),s=norm(a),e=norm(b);$("slice-view").innerHTML='<svg viewBox="0 0 650 100" role="img" aria-label="切片选中位置">'+[10,20,30,40,50].map((n,i)=>'<rect x="'+(i*128+2)+'" y="15" width="115" height="48" rx="4" fill="'+(i>=s&&i<e?"#bad5b8":"#eef2eb")+'"/><text x="'+(i*128+59)+'" y="45" text-anchor="middle">'+n+'</text><text x="'+(i*128+59)+'" y="88" text-anchor="middle" fill="#7b8e80" font-size="12">索引 '+i+'</text>').join("")+"</svg>"};$("slice-start").oninput=update;$("slice-stop").oninput=update;update();}
  if($("score")){const update=()=>{let v=+$("score").value,m=Math.max(v,1),raw=[v,1,0].map(n=>Math.exp(n-m)),sum=raw.reduce((a,b)=>a+b);$("score-value").textContent=v;$("attention-view").innerHTML='<svg viewBox="0 0 650 130" role="img" aria-label="注意力权重">'+raw.map((n,i)=>{let p=n/sum;return '<text x="0" y="'+(25+i*42)+'" font-size="13">位置 '+i+'</text><rect x="65" y="'+(8+i*42)+'" width="'+(p*475)+'" height="26" rx="3" fill="#82b098"/><text x="'+(75+p*475)+'" y="'+(25+i*42)+'" font-size="12">'+p.toFixed(3)+'</text>'}).join("")+"</svg>"};$("score").oninput=update;update();}
 }
+function lessonExtras(lesson){
+ const entries=window.LessonExtras?.[lesson.id]||[];
+ if(!entries.length)return "";
+ return '<section class="lesson-extras" aria-label="本课补充资料">'+entries.map(([label,title,body])=>{
+  const summary='<span class="extra-label">'+esc(label)+'</span> '+esc(title);
+  const content='<div class="extra-content">'+markdown(body)+'</div>';
+  return label.startsWith("进阶")
+   ? '<details><summary>'+summary+'</summary>'+content+'</details>'
+   : '<section><h3>'+summary+'</h3>'+content+'</section>';
+ }).join("")+'</section>';
+}
 function nav(query=""){
- const filtered=course.filter(l=>(l.id+" "+l.title+" "+l.lead+" "+l.body).toLowerCase().includes(query.toLowerCase()));
+ const filtered=course.filter(l=>(l.id+" "+l.title+" "+l.lead+" "+l.body+" "+(window.LessonExtras?.[l.id]||[]).flat().join(" ")).toLowerCase().includes(query.toLowerCase()));
  $("course-nav").innerHTML=Object.keys(stages).map(s=>{
   let items=filtered.filter(l=>l.stage===s);
   if(!items.length)return "";
@@ -123,7 +134,7 @@ async function executeInPythonWorker(payload){
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
  const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
- return '<section class="practice-guide"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details></section>';
+ return '<section id="lesson-practice" class="practice-guide"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details></section>';
 }
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
@@ -132,11 +143,13 @@ function showMap(){
  $("open-local-study").disabled=true;$("toggle-lab").hidden=true;nav($("search").value);window.scrollTo(0,0);
 }
 function show(id){
+ const practice=id.endsWith("/practice");
+ if(practice)id=id.slice(0,-"/practice".length);
  if(id==="map"||!id){showMap();return;}
  document.body.classList.remove("is-map");setLabOpen(false);setCourseOpen(false);$("open-local-study").disabled=false;$("toggle-lab").hidden=false;
  const found=course.find(l=>l.id===id);if(!found){if(course.length)show(course[0].id);return;}current=found;samples=[];document.body.dataset.stage=current.stage;
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
-  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+'<div class="prose">'+readingBody(current)+'</div>'+practiceGuide(current)+'<div class="check"><strong>现在能继续了吗？</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+'<div class="prose">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div class="check"><strong>现在能继续了吗？</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const i=course.indexOf(current),next=current.id.includes("-E")?course[i+1]:course.slice(i+1).find(l=>!l.id.includes("-E"));
  $("previous").disabled=i===0;$("next").disabled=!next;$("next").textContent=next?"下一课 →":"已到主线末课";
@@ -146,7 +159,8 @@ function show(id){
  $("vscode-status").textContent="路径指向本机已有文件。若浏览器询问，请允许打开 Visual Studio Code。";
  const refs=current.visualRefs||[];
  if(refs.length)$("reading").querySelector(".sources").insertAdjacentHTML("beforebegin",'<details class="sources"><summary>延伸可视化：看另一个具体演示</summary>'+refs.map(r=>'<p><a href="'+esc(r.url)+'" target="_blank" rel="noreferrer">'+esc(r.title)+'</a><br>'+esc(r.reason)+'</p>').join("")+'</details>');
-nav($("search").value);wireDiagram();storage.set("last",id);window.scrollTo(0,0);
+nav($("search").value);wireDiagram();storage.set("last",id);
+ if(practice)$("lesson-practice")?.scrollIntoView();else window.scrollTo(0,0);
 }
 $("course-nav").onclick=e=>{let b=e.target.closest("[data-id]"),s=e.target.closest("[data-stage]");if(b)location.hash=b.dataset.id;else if(s){let panel=s.nextElementSibling;panel.hidden=!panel.hidden;s.setAttribute("aria-expanded",String(!panel.hidden));}};
 $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");if(tracked){saveProgress(tracked.dataset.progressAction);return;}let jump=e.target.closest("[data-map-scroll]");
