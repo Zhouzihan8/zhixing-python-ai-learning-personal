@@ -83,3 +83,4 @@ body[data-stage] .prose h3{color:var(--stage-ink)}
 }
 .code-context { display: block; padding: .45rem .65rem; }
 #lesson-practice { scroll-margin-top: 5rem; }
+.carry .actions { flex-wrap: wrap; }

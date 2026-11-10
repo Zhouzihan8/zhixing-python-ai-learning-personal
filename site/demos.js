@@ -4,6 +4,9 @@ window.StudyDemos = (() => {
  const num=n=>Number(n).toFixed(3);
  const wrap=(title,controls,caption)=>'<figure class="figure teaching-demo"><h3>'+title+'</h3>'+controls+'<div id="demo-result"></div><figcaption>'+caption+'</figcaption></figure>';
  function render(l){
+  if(l.id==="S1-U08")return wrap("先预测哪些列表会一起变",'<label>建立 b 的方式 <select id="copy-kind"><option value="alias">b = a</option><option value="shallow">b = a.copy()</option><option value="deep">b = deepcopy(a)</option></select></label> <label>操作 <select id="copy-operation"><option value="outer">b.append([9])</option><option value="inner">b[0].append(9)</option></select></label> <button id="copy-reveal" type="button">看结果</button>',"每次从 a = [[1], [2]] 开始。预测 a 会不会跟着变，再看结果。");
+  if(l.id==="S2-U03")return wrap("同一段代码从哪个目录找文件",'<label>终端当前位置 <select id="cwd-choice"><option>项目</option><option>上一级</option></select></label> <label>路径写法 <select id="path-kind"><option value="relative">Path("data.csv")</option><option value="script">Path(__file__).parent / "data.csv"</option></select></label>',"设 report.py 和 data.csv 都在项目目录。点击两个选项对照查找位置，再回到 VS Code 检查实际终端目录。");
+  if(l.id==="S3-M01")return wrap("同一份数据，两种填充值",'<label><input id="fit-all" type="checkbox">拟合时混入验证集</label>',"训练已观测值是 2 和 4，验证已观测值是 90。切换后观察验证集怎样改变训练阶段本应独立得出的规则。");
   if(l.id==="S3-U03")return wrap("同一个 x 走两条路，梯度相加",'<label>x <input id="branch-x" type="range" min="-3" max="3" step=".5" value="2"></label>',"标量图 y=x×x+x。沿 u=x×x 的贡献为 2x，直接路径贡献为 1，总梯度为 2x+1。这里只展示局部链式关系，不运行自动求导库。");
   if(l.id==="S4-U01")return wrap("把下一词元与填充位置分开",'<label><input id="padding-short" type="checkbox" checked>第二条序列较短，需要填充</label>',"示意词元 ID，0 是本例 padding，−100 是本例损失忽略值。表格手动错位用于理解目标；实际 CausalLM 接口可能内部错位，不能重复操作。");
   if(l.id==="S5-U05")return wrap("格式通过，答案仍可能错",'<label>模型原响应 <select id="response-case"><option value="correct">合法 JSON、标签正确</option><option value="wrong">合法 JSON、标签错误</option><option value="syntax">不是 JSON</option><option value="field">JSON 合法、字段类型错误</option></select></label>',"同一条真实标签 positive 的样例：依次检查 JSON 语法、对象与字段、允许取值，最后才比较标签。失败样本仍留在总分母里。");
@@ -26,6 +29,39 @@ window.StudyDemos = (() => {
  function wire(){
   const out=el("demo-result");if(!out)return;
 
+  if(el("copy-kind")){
+   const hide=()=>{out.textContent="先想一想 a 的外层和第一项分别指向哪里。";};
+   el("copy-kind").onchange=hide;
+   el("copy-operation").onchange=hide;
+   el("copy-reveal").onclick=()=>{
+    const a=[[1],[2]];
+    const kind=el("copy-kind").value;
+    const b=kind==="alias"?a:kind==="shallow"?a.slice():a.map(row=>row.slice());
+    if(el("copy-operation").value==="outer")b.push([9]);
+    else b[0].push(9);
+    out.textContent="a = "+JSON.stringify(a)+"；b = "+JSON.stringify(b)+
+     "。外层"+(a===b?"共享":"独立")+"，第一项"+(a[0]===b[0]?"共享":"独立")+"。";
+   };
+   hide();
+  }
+  if(el("cwd-choice")){
+   const update=()=>{
+    const inProject=el("cwd-choice").value==="项目"||el("path-kind").value==="script";
+    out.textContent=inProject?"查找 项目/data.csv，找到文件。":"查找 上一级/data.csv，找不到项目里的文件。";
+   };
+   el("cwd-choice").onchange=update;
+   el("path-kind").onchange=update;
+   update();
+  }
+  if(el("fit-all")){
+   const update=()=>{
+    const all=el("fit-all").checked;
+    out.innerHTML=all?"<p>拟合用到 [2, 4, 90] → 均值 <strong>32</strong> → 填补缺失值。验证数据参与了规则拟合。</p>"
+     :"<p>拟合只用 [2, 4] → 均值 <strong>3</strong> → 用同一规则填补训练集和验证集的缺失值。</p>";
+   };
+   el("fit-all").onchange=update;
+   update();
+  }
   if(el("branch-x")){
    const update=()=>{const x=+el("branch-x").value,u=x*x,y=u+x;
     out.innerHTML='<svg viewBox="0 0 620 175" role="img" aria-label="共享变量的两条求导路径"><path d="M100 85L230 35L425 85M100 85L425 85" fill="none" stroke="#698174" stroke-width="2"/><rect x="5" y="60" width="95" height="50" rx="5" fill="#e8f2ed"/><text x="52" y="90" text-anchor="middle">x='+x+'</text><rect x="220" y="10" width="120" height="50" rx="5" fill="#eaf0f8"/><text x="280" y="40" text-anchor="middle">u=x²='+num(u)+'</text><rect x="425" y="60" width="185" height="50" rx="5" fill="#f0edf7"/><text x="517" y="90" text-anchor="middle">y=u+x='+num(y)+'</text><text x="150" y="145" font-size="13">经过 u：'+num(2*x)+'</text><text x="350" y="145" font-size="13">直接路径：1</text></svg><p>总梯度 dy/dx = '+num(2*x)+' + 1 = <strong>'+num(2*x+1)+'</strong></p>'};
