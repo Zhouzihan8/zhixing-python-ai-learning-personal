@@ -131,10 +131,21 @@ async function executeInPythonWorker(payload){
   pythonWorker.postMessage({...payload,id});
  });
 }
+function lessonWorkbench(lesson){
+ return '<section class="carry" aria-labelledby="lesson-workbench">'+
+  '<h2 id="lesson-workbench">本课怎么学</h2>'+
+  '<p><strong>先试一个改动</strong> '+esc(lesson.task)+'</p>'+
+  '<p>先预测结果，再运行。卡住时回讲义找对应例子，收起提示后换一个输入再做。'+
+  '如果代码依赖本机框架，直接进入 VS Code 实践。</p>'+
+  '<div class="actions"><button data-lesson-jump="lab">打开网页练习</button>'+
+  '<button data-lesson-jump="lesson-notes">阅读讲义</button>'+
+  (lesson.practicePlan&&lesson.project?'<button data-lesson-jump="lesson-practice">查看 VS Code 任务</button>':'')+
+  '<button data-lesson-jump="lesson-self-check">自查与记录</button></div></section>';
+}
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
  const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
- return '<section id="lesson-practice" class="practice-guide"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details></section>';
+ return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details></section>';
 }
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
@@ -149,7 +160,7 @@ function show(id){
  document.body.classList.remove("is-map");setLabOpen(false);setCourseOpen(false);$("open-local-study").disabled=false;$("toggle-lab").hidden=false;
  const found=course.find(l=>l.id===id);if(!found){if(course.length)show(course[0].id);return;}current=found;samples=[];document.body.dataset.stage=current.stage;
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
-  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+'<div class="prose">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div class="check"><strong>现在能继续了吗？</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const i=course.indexOf(current),next=current.id.includes("-E")?course[i+1]:course.slice(i+1).find(l=>!l.id.includes("-E"));
  $("previous").disabled=i===0;$("next").disabled=!next;$("next").textContent=next?"下一课 →":"已到主线末课";
@@ -172,6 +183,18 @@ $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");
   const l=course.find(l=>l.stage===project.dataset.projectStage),j=l.project,box=$("map-project");
   box.hidden=false;box.innerHTML='<h2>'+esc(j.title)+'</h2><p>'+esc(j.carry)+'</p><p>学到 '+esc(j.after)+' 后完成整合。项目文件已在本机目录，可直接打开动手版。</p><button data-map-open="'+l.stage+'">在 VS Code 打开阶段项目</button>';
   box.scrollIntoView({block:"center"});return;
+ }
+ const lessonJump=e.target.closest("[data-lesson-jump]");
+ if(lessonJump){
+  if(lessonJump.dataset.lessonJump==="lab"){
+   if(innerWidth<1180)setLabOpen(true);
+   $("code").focus();
+  }else{
+   const section=$(lessonJump.dataset.lessonJump);
+   section?.scrollIntoView({block:"start"});
+   section?.focus({preventScroll:true});
+  }
+  return;
  }
  let open=e.target.closest("[data-open]");if(open){openWorkspace(open.dataset.open==="project");return;}let b=e.target.closest("[data-sample]");if(b){$("code").value=samples[+b.dataset.sample];storage.set(current.id,$("code").value);$("run-status").textContent="已载入讲义片段。需要前文变量的例子请补齐上下文；PyTorch 等本机依赖请在本机学习站或 VS Code 中继续。";$("code").focus();if(innerWidth<1180)setLabOpen(true);}};
 $("code").oninput=()=>storage.set(current.id,$("code").value);
