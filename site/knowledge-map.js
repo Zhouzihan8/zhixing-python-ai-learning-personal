@@ -1,6 +1,45 @@
 /* 首页从课程清单与知识关系生成，章节链接与正文使用同一编号。 */
 window.COURSE_MAP={"groups": {"S1": [["运行与基本语法", ["S1-U01", "S1-U02", "S1-U03"]], ["组织和处理数据", ["S1-U04", "S1-U05", "S1-U06"]], ["把程序写成工具", ["S1-U07", "S1-U08", "S1-U09", "S1-U10"]]], "S2": [["读懂项目", ["S2-U01", "S2-U02", "S2-U03"]], ["处理数值与表格", ["S2-U04", "S2-U05", "S2-U06"]], ["展示并串起流程", ["S2-U07", "S2-U08"]]], "S3": [["先建立机器学习流程", ["S3-U01", "S3-M01", "S3-M02", "S3-M03", "S3-M04", "S3-M05"]], ["再理解自动求导与训练", ["S3-U02", "S3-U03", "S3-U04", "S3-U05"]], ["独立组织实验", ["S3-U06", "S3-U07", "S3-U08"]]], "S4": [["文本如何变成表示", ["S4-U01", "S4-U02"]], ["计算注意力", ["S4-U03", "S4-U04"]], ["连接完整模块", ["S4-U05", "S4-U06"]]], "S5": [["理解模型与输入协议", ["S5-U01", "S5-U02"]], ["控制并评价生成", ["S5-U03", "S5-U04", "S5-U05"]], ["完成任务实验台", ["S5-U06"]]], "S6": [["接口与文档检索", ["S6-U01", "S6-U02"]], ["先完成普通 RAG", ["S6-U03", "S6-U04"]], ["需要工具时再加 Agent", ["S6-U05", "S6-U06", "S6-U07"]]]}, "outcomes": {"S1": "产物：能换输入、能解释输出的文本统计工具。", "S2": "产物：读入 CSV、清理、汇总并绘图的数据分析项目。", "S3": "产物：固定划分、比较基准、保存指标的分类实验。", "S4": "产物：可手算、可改掩码、可与 PyTorch 核对的注意力实验。", "S5": "产物：保存全部响应、格式结果和失败样例的文本任务实验台。", "S6": "产物：能定位检索与生成错误的小型文档问答流程。"}, "threads": [{"title": "把函数一步步用成模型与工具", "ids": ["S1-U07", "S2-U01", "S3-U06", "S6-U05"]}, {"title": "追踪数据形状和表示", "ids": ["S1-U04", "S2-U05", "S3-U02", "S4-U04", "S5-U02"]}, {"title": "让实验结果可以比较", "ids": ["S1-U09", "S3-M04", "S3-U08", "S5-U05", "S6-U04"]}]};
 
+const fastStages = [
+ ["S1", "12–16 小时", ["S1-U01","S1-U04","S1-U05","S1-U07","S1-U08","S1-U09","S1-U10"],
+  "换一个文本文件，独立写出读取、计数、保存结果的流程，能解释列表修改和重新赋值的区别。"],
+ ["S2", "12–16 小时", ["S2-U01","S2-U02","S2-U03","S2-U04","S2-U05","S2-U06","S2-U08"],
+  "选对 VS Code 解释器，换一份 CSV 跑通数据项目，并用断点定位一次路径或数据问题。"],
+ ["S3", "18–24 小时", ["S3-U01","S3-M01","S3-M04","S3-U02","S3-U03","S3-U05","S3-U06"],
+  "跑通分类基线，改一个配置，解释数据划分、评价指标和训练循环。做到这里就可以尝试跑组里的基线。"],
+ ["S4", "10–14 小时", ["S4-U01","S4-U03","S4-U05","S4-U06"],
+  "算出一个小注意力例子，改动未来位置的值，解释因果掩码和张量形状。"],
+ ["S5", "与 S6 合计 28–40 小时", ["S5-U01","S5-U02","S5-U04","S5-U05"],
+  "用固定样例比较两种提示，记录格式和任务指标，再找出一条失败原因。"],
+ ["S6", "计入 S5–S6", ["S6-U01","S6-U02","S6-U03","S6-U04","S6-U05"],
+  "换一份文档跑通问答，区分召回不到、引用不支持和回答不准确；解释谁提出工具调用，谁实际执行。"]
+];
+
+function renderFastTrack(byId, stages, records, esc){
+ const passed=id=>["初步掌握","稳定掌握"].includes(records[id]?.status);
+ const ids=fastStages.flatMap(([, , lessons])=>lessons).filter(id=>byId[id]);
+ const next=ids.find(id=>!passed(id));
+ const needsPractice=next&&records[next]?.status==="需补练";
+ const resume=next
+  ? '<p>下一项：<a class="map-start" href="#'+next+(needsPractice?'/practice':'')+'">'+esc(byId[next].title)+'</a></p>'
+  : '<p>快线课程已有掌握记录。用下方验收任务换输入再做一次。</p>';
+ const stagesHtml=fastStages.map(([stage,hours,lessons,check])=>{
+  const selected=lessons.filter(id=>byId[id]);
+  const links=selected.map(id=>'<li><a href="#'+id+'">'+esc(byId[id].title)+'</a>'+
+   ' · <a href="#'+id+'/practice">先做实践</a>'+
+   (records[id]?.status?' · '+esc(records[id].status):'')+'</li>').join("");
+  return '<details'+(selected.includes(next)?' open':'')+'><summary>'+esc(stages[stage])+
+   ' · '+selected.filter(passed).length+'/'+selected.length+' 课已有掌握记录 · '+hours+
+   '</summary><ol>'+links+'</ol><p><strong>阶段验收</strong> '+esc(check)+'</p></details>';
+ }).join("");
+ return '<section class="map-options" aria-label="项目学习快线"><h2>项目学习快线 · 80–110 小时</h2>'+
+  '<p>先做实践。能关掉提示、换个输入改对并说清原因，就在课末记录「本次独立完成」。'+
+  '卡住时回讲义找对应小节，再试一个小变式。用到其它知识时，从下方完整知识树补学。</p>'+
+  '<p>已有掌握记录 '+ids.filter(passed).length+' / '+ids.length+' 课</p>'+
+  resume+stagesHtml+'</section>';
+}
+
 window.LearningMap = {
  recommendation(course,progress){
   const records=progress?.records||{},required=course.filter(l=>!l.id.includes("-E"));
@@ -23,9 +62,11 @@ window.LearningMap = {
  },
  render(course,stages,esc,last,progress){
   const data=window.COURSE_MAP,byId=Object.fromEntries(course.map(l=>[l.id,l])),state=this.recommendation(course,progress);
+  const fastTrack=renderFastTrack(byId,stages,state.records,esc);
   const link=id=>{const status=state.records[id]?.status;return '<a class="tree-lesson" href="#'+id+'"><span>'+id+(status?'<small class="tree-status">'+esc(status)+'</small>':'')+'</span>'+esc(byId[id].title)+'</a>';};
   const recordDetail=state.targetNote?'<aside class="progress-personal-note"><strong>你上次写下的依据或卡点</strong><p>'+esc(state.targetNote)+'</p><small>提示使用：'+esc(({none:"未用提示",partial:"使用了部分提示",full:"看过完整示例/答案"})[state.targetHint]||"未记录")+(state.practiceCount?' · 已记录 '+state.practiceCount+' 次补练':'')+'</small></aside>':'';
-  const recommendation=state.target?'<section class="progress-overview"><div><h2>下一步：'+esc(state.target.id)+' · '+esc(state.target.title)+'</h2><p>'+esc(state.reason)+'</p>'+recordDetail+'<p class="progress-next"><strong>建议这样做：</strong>'+esc(state.nextStep)+'</p><p class="progress-count">必修记录 '+state.passed+' / '+state.total+' · 稳定掌握 '+state.stable+' · 需补练 '+state.needsCount+'</p></div><a class="map-start" href="#'+esc(state.target.id)+(state.needsCount&&state.targetRecord.status==="需补练"?"/practice":"")+'">'+(state.targetRecord.status==="需补练"?"打开本课补练":state.target.id.includes("-E")?"查看选修":"继续这项学习")+'</a></section>':'<section class="progress-overview"><div><h2>主线已全部记录</h2><p>可以从选修内容中选择下一项，或在后续任务里继续验证旧知识。</p></div></section>';
-  return '<h1>从 Python 到大模型<br>你的学习知识树</h1><p class="map-intro">你学过 C/C++ 和大学数学，Python 从语言差异与项目写法开始，不重学编程思维，也不把数学另列成一整段；需要的数学在模型实践中边用边回顾。路线逐步经过工程数据、机器学习、深度学习、Transformer、大模型与 RAG。MySQL 和后端接口放在问答等项目确实需要时再接入。每课先读讲义、预测结果，再在练习区运行并改动示例，随后直接打开你电脑里已有的实践文件，在 VS Code 中继续。</p>'+recommendation+'<ol class="map-overview">'+Object.keys(stages).map((s,i)=>'<li data-stage="'+s+'"><button data-map-scroll="'+s+'"><span>'+(i+1)+'</span>'+esc(stages[s])+'</button></li>').join('')+'</ol><div class="map-actions"><a class="map-start" href="#S1-U01">从 Python 第一课开始</a>'+(byId[last]?'<a href="#'+last+'">继续上次阅读：'+esc(last)+'</a>':'')+'</div><p class="map-key">主线按阶段从上到下，同一分支按列出顺序推进。每个知识节点都可点击；选修单独列在主线之后。</p><div class="knowledge-tree">'+Object.keys(stages).map((stage,i)=>'<section class="tree-stage" id="tree-'+stage+'" data-stage="'+stage+'"><div class="tree-stage-title"><span class="stage-number">'+(i+1)+'</span><h2>'+(stage==='S3'?'机器学习<br>与深度学习':esc(stages[stage]))+'</h2><p>'+esc(data.outcomes[stage])+'</p><button data-project-stage="'+stage+'">在 VS Code 打开阶段项目</button></div><div class="tree-branches">'+data.groups[stage].map(([title,ids])=>'<section><h3>'+esc(title)+'</h3><div class="tree-leaves">'+ids.map(link).join('')+'</div></section>').join('')+'</div></section>').join('')+'</div><section class="map-options"><h2>主线之后，按项目需要选学</h2><p>微调先完成大模型基准；数据库和接口可从 S6 文档问答项目继续接入。</p><div class="optional-leaves">'+['S5-E01','S6-E01','S6-E03','S6-E02'].map(link).join('')+'</div></section><section class="knowledge-threads"><h2>前面学过的知识，会在哪里再次用到？</h2>'+data.threads.map(t=>'<div><h3>'+esc(t.title)+'</h3><p>'+t.ids.map(id=>'<a href="#'+id+'">'+esc(byId[id].title)+'</a>').join('<span aria-hidden="true"> → </span>')+'</p></div>').join('')+'</section><section class="map-project" id="map-project" hidden></section><p class="map-foot">完成材料不等于掌握。每课先预测、再修改，阶段项目换一份输入再解释；不安排额外打卡或固定复习时段。</p>';
+  const recommendation=state.target?'<section class="progress-overview"><div><h2>完整路线下一步：'+esc(state.target.id)+' · '+esc(state.target.title)+'</h2><p>'+esc(state.reason)+'</p>'+recordDetail+'<p class="progress-next"><strong>建议这样做：</strong>'+esc(state.nextStep)+'</p><p class="progress-count">必修记录 '+state.passed+' / '+state.total+' · 稳定掌握 '+state.stable+' · 需补练 '+state.needsCount+'</p></div><a class="map-start" href="#'+esc(state.target.id)+(state.needsCount&&state.targetRecord.status==="需补练"?"/practice":"")+'">'+(state.targetRecord.status==="需补练"?"打开本课补练":state.target.id.includes("-E")?"查看选修":"继续这项学习")+'</a></section>':'<section class="progress-overview"><div><h2>主线已全部记录</h2><p>可以从选修内容中选择下一项，或在后续任务里继续验证旧知识。</p></div></section>';
+  return '<h1>从 Python 到大模型<br>你的学习知识树</h1><p class="map-intro">你学过 C/C++ 和大学数学，Python 从语言差异与项目写法开始，不重学编程思维，也不把数学另列成一整段；需要的数学在模型实践中边用边回顾。路线逐步经过工程数据、机器学习、深度学习、Transformer、大模型与 RAG。MySQL 和后端接口放在问答等项目确实需要时再接入。每课先读讲义、预测结果，再在练习区运行并改动示例，随后直接打开你电脑里已有的实践文件，在 VS Code 中继续。</p>'+fastTrack+recommendation+'<ol class="map-overview">'+Object.keys(stages).map((s,i)=>'<li data-stage="'+s+'"><button data-map-scroll="'+s+'"><span>'+(i+1)+'</span>'+esc(stages[s])+'</button></li>').join('')+'</ol><div class="map-actions"><a class="map-start" href="#S1-U01">从 Python 第一课开始</a>'+(byId[last]?'<a href="#'+last+'">继续上次阅读：'+esc(last)+'</a>':'')+'</div><p class="map-key">主线按阶段从上到下，同一分支按列出顺序推进。每个知识节点都可点击；选修单独列在主线之后。</p><div class="knowledge-tree">'+Object.keys(stages).map((stage,i)=>'<section class="tree-stage" id="tree-'+stage+'" data-stage="'+stage+'"><div class="tree-stage-title"><span class="stage-number">'+(i+1)+'</span><h2>'+(stage==='S3'?'机器学习<br>与深度学习':esc(stages[stage]))+'</h2><p>'+esc(data.outcomes[stage])+'</p><button data-project-stage="'+stage+'">在 VS Code 打开阶段项目</button></div><div class="tree-branches">'+data.groups[stage].map(([title,ids])=>'<section><h3>'+esc(title)+'</h3><div class="tree-leaves">'+ids.map(link).join('')+'</div></section>').join('')+'</div></section>').join('')+'</div><section class="map-options"><h2>主线之后，按项目需要选学</h2><p>微调先完成大模型基准；数据库和接口可从 S6 文档问答项目继续接入。</p><div class="optional-leaves">'+['S5-E01','S6-E01','S6-E03','S6-E02'].map(link).join('')+'</div></section><section class="knowledge-threads"><h2>前面学过的知识，会在哪里再次用到？</h2>'+data.threads.map(t=>'<div><h3>'+esc(t.title)+'</h3><p>'+t.ids.map(id=>'<a href="#'+id+'">'+esc(byId[id].title)+'</a>').join('<span aria-hidden="true"> → </span>')+'</p></div>').join('')+'</section><section class="map-project" id="map-project" hidden></section><p class="map-foot">完成材料不等于掌握。每课先预测、再修改，阶段项目换一份输入再解释；不安排额外打卡或固定复习时段。</p>';
  }
 };
+
