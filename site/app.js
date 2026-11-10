@@ -201,7 +201,27 @@ $("code").oninput=()=>storage.set(current.id,$("code").value);
 $("code").onkeydown=e=>{if(e.key==="Tab"){e.preventDefault();let t=e.target;t.setRangeText("    ",t.selectionStart,t.selectionEnd,"end");storage.set(current.id,t.value)}if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}};
 async function run(){
  if(busy||!current)return;busy=true;$("run").disabled=true;let id=current.id;$("run-status").textContent="Python 正在执行…";$("output").textContent="";
- try{let data=await executeInPythonWorker({id,code:$("code").value,stdin:$("stdin").value,files:current.files||{}});if(current?.id!==id)return;$("output").textContent=(data.stdout||"")+(data.stderr?"\n"+data.stderr:"")+(data.error?"\n"+data.error:"")||"程序没有打印内容。表达式需要 print 才会显示。";$("run-status").textContent=data.exitCode===0?"执行完成。请试着解释结果，再改一个条件。":"出现 Python 错误：先读最后一行，再找对应代码位置。PyTorch 等本机依赖请转到本机学习站或 VS Code。";files(data.files||{});}
+ const lesson=current,code=$("code").value,stdin=$("stdin").value;
+ try{
+  const data=await executeInPythonWorker({id,code,stdin,files:lesson.files||{}});
+  if(current?.id!==id)return;
+  $("output").textContent=[data.stdout,data.stderr,data.error].filter(Boolean).join("\n")
+   ||"程序没有打印内容。表达式需要 print 才会显示。";
+  const normalize=text=>String(text??"").replace(/\r\n/g,"\n").trimEnd();
+  const starterRun=normalize(code)===normalize(lesson.starter)
+   && stdin.replace(/\r\n/g,"\n")===(lesson.stdin??"").replace(/\r\n/g,"\n")
+   && typeof lesson.expected==="string";
+  let status="执行完成。把结果与你运行前的预测对照，再解释差异。";
+  if(data.exitCode!==0){
+   status="出现 Python 错误：先读最后一行，再找对应代码位置。PyTorch 等本机依赖请转到本机学习站或 VS Code。";
+  }else if(starterRun){
+   status=normalize(data.stdout)===normalize(lesson.expected)
+    ?"初始实验的标准输出与参考一致。试着换一个条件，先写下预测，再运行。"
+    :"初始实验的标准输出与参考不同。展开参考输出，找出第一处差异。";
+  }
+  $("run-status").textContent=status;
+  files(data.files||{});
+ }
  catch(error){$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{busy=false;$("run").disabled=false;}
 }
 $("run").onclick=run;$("reset").onclick=()=>{$("code").value=current.starter;$("stdin").value=current.stdin||"";storage.set(current.id,current.starter);storage.set(current.id+":stdin",current.stdin||"");$("run-status").textContent="已还原初始实验。"};

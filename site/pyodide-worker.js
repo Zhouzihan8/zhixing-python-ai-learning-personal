@@ -29,18 +29,18 @@ function removeTree(pyodide, path) {
   fs.rmdir(path);
 }
 
-function collectFiles(pyodide, path, files) {
+function collectFiles(pyodide, path, files, root = path) {
   const fs = pyodide.FS;
   for (const name of fs.readdir(path)) {
     if (name === "." || name === "..") continue;
     const child = `${path}/${name}`;
     const stat = fs.stat(child);
     if (fs.isDir(stat.mode)) {
-      collectFiles(pyodide, child, files);
+      collectFiles(pyodide, child, files, root);
       continue;
     }
     if (!/\.(json|txt|csv)$/i.test(name) || stat.size > 100000) continue;
-    const relative = child.slice(path.length + 1);
+    const relative = child.slice(root.length + 1);
     files[relative] = decoder.decode(fs.readFile(child));
   }
 }
@@ -74,7 +74,22 @@ self.onmessage = async event => {
     pyodide.setStderr({ batched: text => output.stderr.push(text) });
 
     const namespace = await pyodide.runPythonAsync(
-      `import runpy\nrunpy.run_path(${JSON.stringify(scriptPath)}, run_name="__main__")`
+      `def _zhixing_run(script_path, run_directory):
+    import runpy
+    import sys
+
+    original_path = sys.path[:]
+    sys.path.insert(0, run_directory)
+    try:
+        return runpy.run_path(script_path, run_name="__main__")
+    finally:
+        sys.path[:] = original_path
+        for name, module in tuple(sys.modules.items()):
+            origin = getattr(module, "__file__", None)
+            if isinstance(origin, str) and origin.startswith(run_directory + "/"):
+                sys.modules.pop(name, None)
+
+_zhixing_run(${JSON.stringify(scriptPath)}, ${JSON.stringify(runDirectory)})`
     );
     namespace?.destroy?.();
     const generated = {};
