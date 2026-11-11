@@ -4,6 +4,8 @@ window.StudyDemos = (() => {
  const num=n=>Number(n).toFixed(3);
  const wrap=(title,controls,caption)=>'<figure class="figure teaching-demo"><h3>'+title+'</h3>'+controls+'<div id="demo-result"></div><figcaption>'+caption+'</figcaption></figure>';
  function render(l){
+  if(l.id==="S5-U02")return wrap("看见补齐后的 ID 和掩码",'<label><input id="token-pad-short" type="checkbox" checked>第二条输入只有一个词元</label>',"教学示例用 0 补齐，掩码 1 表示有效输入，0 表示填充。真实模型的填充方向和填充 ID 以 tokenizer 配置为准。");
+  if(l.id==="S6-U04")return wrap("同样答错，下一步查哪里",'<label>评测样例 <select id="rag-diagnosis"><option value="q2">q2 · 标准 c3，召回 c2、c4，答错</option><option value="q3">q3 · 标准 c5，召回 c5、c6，答错</option><option value="none">新增题 · 无标准证据，仍给出断言</option></select></label> <button type="button" id="rag-reveal">核对排查顺序</button>',"q2 和 q3 来自本课代码。先判断是没找到证据、找到了却答错，还是应当拒答。");
   if(l.id==="S3-U08")return wrap("卷积与池化怎样改变图像尺寸",'<label>卷积核 <select id="cnn-kernel"><option>3</option><option>5</option></select></label> <label>步长 <select id="cnn-stride"><option>1</option><option>2</option></select></label> <label>填充 <select id="cnn-padding"><option>0</option><option selected>1</option><option>2</option></select></label>',"输入为 28 × 28 的单通道图像，卷积输出 8 通道，膨胀率为 1。后面固定接 2 × 2、步长 2 的最大池化。先预测，再切换参数核对。");
   if(l.id==="S3-U06")return wrap("批次大小不同时，怎样算总体准确率",'<label><input id="third-batch" type="checkbox">加入第三批（2 / 4）</label>',"先预测加一批后总体准确率，再对照讲义里的汇总代码。每个样本权重相同，所以用总正确数除以总样本数。");
   if(l.id==="S6-U05")return wrap("请求经过哪一关才会调用函数",'<label>模拟请求 <select id="tool-case"><option value="valid">已注册工具，count = 3</option><option value="bad-count">已注册工具，count = 0</option><option value="unknown">未知工具，count = 3</option></select></label>',"教学演示只模拟检查顺序，不连接模型。选择一种请求，判断执行器会在哪一步停下。");
@@ -23,7 +25,7 @@ window.StudyDemos = (() => {
   if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step=".05" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
   if(["S4-U03","S4-U04","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
   if(["S5-U03","S5-U04"].includes(l.id))return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
-  if(["S6-U02","S6-U03","S6-U04"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
+  if(["S6-U02","S6-U03"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
   return "";
  }
  function bars(values,labels){
@@ -32,6 +34,29 @@ window.StudyDemos = (() => {
  function wire(){
   const out=el("demo-result");if(!out)return;
 
+  if(el("token-pad-short")){
+   const update=()=>{
+    const short=el("token-pad-short").checked;
+    out.innerHTML='<table class="metric-table"><thead><tr><th>样本</th><th>input_ids</th><th>attention_mask</th></tr></thead>'+
+     '<tbody><tr><th>第一条</th><td>[4, 5, 6]</td><td>[1, 1, 1]</td></tr>'+
+     '<tr><th>第二条</th><td>'+(short?'[7, 0, 0]':'[7, 8, 9]')+'</td><td>'+
+     (short?'[1, 0, 0]':'[1, 1, 1]')+'</td></tr></tbody></table>'+
+     '<p>批次形状 [2, 3]，有效位置共 '+(short?4:6)+' 个。</p>';
+   };
+   el("token-pad-short").onchange=update;
+   update();
+  }
+  if(el("rag-diagnosis")){
+   const outcomes={
+    q2:"先查检索。c3 没进入候选，先看切分、关键词和召回数量。",
+    q3:"先查生成与证据使用。c5 已召回，核对它是否进入提示，以及引用能否支持答案。",
+    none:"单独查拒答表现。题目没有标准证据，查看模型是否说明证据不足。"
+   };
+   const reset=()=>{out.textContent="先在心里选一个要检查的步骤。";};
+   el("rag-diagnosis").onchange=reset;
+   el("rag-reveal").onclick=()=>{out.textContent=outcomes[el("rag-diagnosis").value];};
+   reset();
+  }
   if(el("cnn-kernel")){
    const update=()=>{
     const kernel=Number(el("cnn-kernel").value);
@@ -172,7 +197,16 @@ window.StudyDemos = (() => {
     const scores=qk.map(k=>(qk[q][0]*k[0]+qk[q][1]*k[1])/Math.sqrt(2));
     const valid=scores.map((s,i)=>mask&&i>q?-Infinity:s),m=Math.max(...valid),e=valid.map(s=>Math.exp(s-m)),sum=e.reduce((a,b)=>a+b),p=e.map(x=>x/sum);
     const result=[0,1].map(d=>p.reduce((acc,w,i)=>acc+w*v[i][d],0));
-    out.innerHTML="<pre>原始缩放分数："+scores.map(num).join(", ")+"\n掩码后："+valid.map(s=>s===-Infinity?"−∞":num(s)).join(", ")+"\n加权输出：["+result.map(num).join(", ")+"]</pre>"+bars(p,["位置 0","位置 1","位置 2"])};
+    const rows=p.map((weight,i)=>{
+     const contribution=v[i].map(value=>num(weight*value));
+     return '<tr><th scope="row">'+i+'</th><td>'+num(scores[i])+'</td><td>'+
+      (valid[i]===-Infinity?"屏蔽":num(valid[i]))+'</td><td>'+num(weight)+'</td><td>['+
+      contribution.join(", ")+']</td></tr>';
+    }).join("");
+    out.innerHTML='<div class="demo-table-scroll"><table class="metric-table"><thead><tr>'+
+     '<th>位置</th><th>缩放分数</th><th>掩码后</th><th>权重</th><th>对输出的贡献</th>'+
+     '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+     '<p>各位置贡献相加 → <strong>['+result.map(num).join(", ")+']</strong></p>'};
    el("query-position").onchange=update;el("causal-enabled").onchange=update;el("change-last-value").onchange=update;update();
   }
   if(el("temperature")){

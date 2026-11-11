@@ -84,3 +84,22 @@ body[data-stage] .prose h3{color:var(--stage-ink)}
 .code-context { display: block; padding: .45rem .65rem; }
 #lesson-practice { scroll-margin-top: 5rem; }
 .carry .actions { flex-wrap: wrap; }
+.lesson-reference {
+  margin: 1.25rem 0;
+  padding: .6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: .45rem;
+  font-size: inherit;
+}
+.lesson-reference > summary { font-weight: 600; }
+.lesson-walkthrough {
+  margin-top: 1.5rem;
+  padding: .75rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--code);
+}
+.lesson-walkthrough h3 { margin: 0 0 .5rem; }
+.lesson-walkthrough ol, .practice-steps { margin: .5rem 0; padding-left: 1.5em; }
+.lesson-walkthrough li + li, .practice-steps li + li { margin-top: .5rem; }
+.demo-table-scroll { overflow-x: auto; }
+.demo-table-scroll .metric-table { min-width: 26rem; }

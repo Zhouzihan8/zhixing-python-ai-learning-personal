@@ -103,18 +103,31 @@ function files(items){$("file-list").innerHTML=Object.entries(items).map(([n,b])
 const demoHeadings={
  "S1-U08":"浅拷贝只复制外层",
  "S2-U03":"当前目录与脚本所在目录",
+ "S2-U05":"乘法的两种意义",
  "S3-M01":"跟着一份小表走完处理过程",
  "S3-U06":"小例子 1：标准库解释样本加权",
  "S3-U08":"保存权重与恢复训练是两种交付",
+ "S4-U03":"两种掩码解决不同问题",
+ "S5-U02":"数据流必须能指出来",
+ "S6-U04":"5. 用错误类别指导修改",
  "S6-U05":"4. 执行器负责真正调用"
 };
 function readingBody(lesson){
  const html=markdown(lesson.body);
+ const study=window.LessonStudy?.[lesson.id];
+ if(study?.shortBody){
+  return markdown(study.shortBody)+'<div id="lesson-visual" tabindex="-1">'+diagram(lesson)+
+   '</div><details class="lesson-reference"><summary>展开完整讲义</summary>'+html+'</details>';
+ }
  const heading=lesson.visualAfter||demoHeadings[lesson.id];
  const anchor=heading?"<h3>"+inline(heading)+"</h3>":"<h3>";
  const at=html.indexOf(anchor);
  const next=at<0?-1:html.indexOf("<h3>",at+anchor.length);
- const visual='<div id="lesson-visual" tabindex="-1">'+diagram(lesson)+'</div>';
+ const explanation=study?.explanation
+  ? '<section class="lesson-walkthrough"><h3>'+esc(study.title)+'</h3><ol>'+
+    study.explanation.map(step=>'<li>'+inline(step)+'</li>').join("")+'</ol></section>'
+  : "";
+ const visual='<div id="lesson-visual" tabindex="-1">'+explanation+diagram(lesson)+'</div>';
  const content=next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
  const review=practiceChecks[lesson.id]?.reviewHeading;
  return review?content.replace("<h3>"+inline(review)+"</h3>",
@@ -165,6 +178,10 @@ function lessonWorkbench(lesson){
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
  const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
+ const steps=window.LessonStudy?.[l.id]?.practice;
+ const task=steps
+  ? '<ol class="practice-steps">'+steps.map(step=>'<li>'+inline(step)+'</li>').join("")+'</ol>'
+  : '<p><strong>自己修改：</strong>'+esc(p.change)+'</p>';
  const optionalProject={
   "S2-U08":["S2","S2-P01_小型数据分析/接手陌生仓库","打开接手陌生仓库练习"],
   "S3-U08":["S3","图像分类扩展","打开 MNIST 图像分类实验"],
@@ -175,7 +192,7 @@ function practiceGuide(l){
   ? '<p><a href="vscode://file/'+encodeURI(localRoot+"/"+practiceFolders[optionalProject[0]]+
     "/03_项目/"+optionalProject[1])+'">'+optionalProject[2]+'</a></p>'
   : "";
- return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
+ return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p>'+task+'<p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
 }
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
