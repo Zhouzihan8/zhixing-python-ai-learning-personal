@@ -18,6 +18,7 @@ window.StudyDemos = (() => {
   if(l.id==="S3-M01")return wrap("同一份数据，两种填充值",'<label><input id="fit-all" type="checkbox">拟合时混入验证集</label>',"训练已观测值是 2 和 4，验证已观测值是 90。切换后观察验证集怎样改变训练阶段本应独立得出的规则。");
   if(l.id==="S3-U03")return wrap("同一个 x 走两条路，梯度相加",'<label>x <input id="branch-x" type="range" min="-3" max="3" step=".5" value="2"></label>',"标量图 y=x×x+x。沿 u=x×x 的贡献为 2x，直接路径贡献为 1，总梯度为 2x+1。这里只展示局部链式关系，不运行自动求导库。");
   if(l.id==="S4-U01")return wrap("把下一词元与填充位置分开",'<label><input id="padding-short" type="checkbox" checked>第二条序列较短，需要填充</label>',"示意词元 ID，0 是本例 padding，−100 是本例损失忽略值。表格手动错位用于理解目标；实际 CausalLM 接口可能内部错位，不能重复操作。");
+  if(l.id==="S5-U04")return wrap("把模型原文交给程序核验",'<label>模拟响应 <select id="prompt-response"><option value="valid">字段和证据符合约定</option><option value="unsupported">证据在原文中找不到</option><option value="missing">缺少 evidence 字段</option><option value="syntax">JSON 后面追加说明</option></select></label>',"输入固定为「物流很快，但商品损坏了」。任务约定优先评价商品，label 只能取正面、负面、中性。证据核验只检查非空片段是否来自原文，标签是否正确仍需和标准答案比较。");
   if(l.id==="S5-U05")return wrap("格式通过，答案仍可能错",'<label>模型原响应 <select id="response-case"><option value="correct">合法 JSON、标签正确</option><option value="wrong">合法 JSON、标签错误</option><option value="syntax">不是 JSON</option><option value="field">JSON 合法、字段类型错误</option></select></label>',"同一条真实标签 positive 的样例：依次检查 JSON 语法、对象与字段、允许取值，最后才比较标签。失败样本仍留在总分母里。");
   if(l.id==="S6-E03")return wrap("有实验，没有运行：连接后会发生什么",'<label>连接类型 <select id="join-kind"><option value="left">LEFT JOIN</option><option value="inner">INNER JOIN</option></select></label> <label><input id="join-run" type="checkbox">给 pending 增加一次分数 0.5 的运行</label>',"网页按三组教学记录计算对应查询结果，不连接 MySQL。COUNT(r.id) 统计实际运行，AVG 忽略无匹配的 NULL；后续到本机执行相同 SQL。");
 
@@ -28,8 +29,9 @@ window.StudyDemos = (() => {
   if(["S2-U04","S2-U05"].includes(l.id))return wrap("广播不是把维度随意凑在一起",'<label>B 的形状 <select id="broadcast-shape"><option value="1,3">[1, 3]</option><option value="2,1">[2, 1]</option><option value="2,2">[2, 2]（不兼容）</option></select></label>',"A 固定为 [[1,2,3],[4,5,6]]，形状 [2,3]；从尾部对齐，维度必须相等或其中一个为 1。这里显示逐元素相加，不是矩阵乘法。");
   if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step=".05" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
   if(["S4-U03","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
-  if(["S5-U03","S5-U04"].includes(l.id))return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
-  if(["S6-U02","S6-U03"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
+  if(l.id==="S5-U03")return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
+  if(l.id==="S6-U02")return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
+  if(l.id==="S6-U03")return wrap("追踪一条证据怎样进入答案",'<label>检索结果 <select id="rag-evidence"><option value="hit">命中 c1</option><option value="missing">未找到依据</option></select></label>',"保持问题不变，切换检索结果。模拟回答使用课内的规则函数。到 VS Code 换成真实模型后，逐条核对回答与所引资料。");
   return "";
  }
  function bars(values,labels){
@@ -97,6 +99,47 @@ window.StudyDemos = (() => {
    el("agent-budget").onchange=reset;
    el("agent-reset").onclick=reset;
    reset();
+  }
+  if(el("prompt-response")){
+   const source="物流很快，但商品损坏了";
+   const responses={
+    valid:'{"label":"负面","evidence":"商品损坏了"}',
+    unsupported:'{"label":"负面","evidence":"商家拒绝退款"}',
+    missing:'{"label":"负面"}',
+    syntax:'{"label":"负面","evidence":"商品损坏了"} 以上是分类结果'
+   };
+   out.innerHTML='<pre></pre><p role="status"></p>';
+   const update=()=>{
+    const raw=responses[el("prompt-response").value];
+    let verdict;
+    try{
+     const value=JSON.parse(raw);
+     if(!["正面","负面","中性"].includes(value.label)||typeof value.evidence!=="string"||!value.evidence.trim()){
+      verdict="JSON 可解析 → 字段校验失败。检查 label 取值和 evidence 是否为非空文本。";
+     }else{
+      verdict=source.includes(value.evidence)
+       ?"JSON 可解析 → 字段有效 → 证据核验通过。下一步比较标签与标准答案。"
+       :"JSON 可解析 → 字段有效 → 证据核验失败。这个片段没有出现在输入原文中。";
+     }
+    }catch{
+     verdict="JSON 解析失败。额外说明和对象一起交给 json.loads 时会出错。";
+    }
+    out.firstElementChild.textContent=raw;
+    out.lastElementChild.textContent=verdict;
+   };
+   el("prompt-response").onchange=update;
+   update();
+  }
+  if(el("rag-evidence")){
+   out.innerHTML='<pre role="status"></pre>';
+   const update=()=>{
+    const hit=el("rag-evidence").value==="hit";
+    const context=hit?"[c1] 列表 copy 创建浅拷贝\n来源：notes.md":"（没有可用片段）";
+    const answer=hit?"列表 copy 创建浅拷贝 [c1]":"资料不足，暂时无法回答。";
+    out.firstElementChild.textContent="问题：列表 copy 做了什么？\n\n模型上下文\n"+context+"\n\n模拟答案\n"+answer;
+   };
+   el("rag-evidence").onchange=update;
+   update();
   }
 
   if(el("token-pad-short")){

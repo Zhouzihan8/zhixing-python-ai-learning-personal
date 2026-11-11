@@ -5,7 +5,7 @@ const localRoot="D:/学习/个人学习";
 const practiceFolders={S1:"01_Python基础",S2:"02_Python工程与科学计算",S3:"03_PyTorch与深度学习基础",S4:"04_序列与Transformer",S5:"05_大模型基础与实践",S6:"06_RAG与Agent入门"};
 function localPracticePath(l,project=false){const folder=practiceFolders[l.stage];return project?localRoot+"/"+folder+"/03_项目/"+l.stage+"-P01_"+l.project.title+"/动手版/我的项目.py":localRoot+"/"+folder+"/02_练习/"+l.id+"/我的练习.py";}
 function localLessonUrl(l){return "http://127.0.0.1:19867/#"+l.id;}
-function setPracticeTarget(l,project=false){const path=localPracticePath(l,project);$("vscode-path").textContent=path.replaceAll("/", "\\");$("vscode-link").href="vscode://file/"+encodeURI(path);$("vscode-link").textContent=project?"直接打开阶段项目文件 ↗":"直接打开练习文件 ↗";$("local-site-link").href=localLessonUrl(l);}
+function setPracticeTarget(l){const path=localPracticePath(l);$("vscode-path").textContent=path.replaceAll("/", "\\");$("vscode-link").href="vscode://file/"+encodeURI(path);$("local-site-link").href=localLessonUrl(l);}
 let course=[],current,samples=[],busy=false,pythonWorker=null,pythonReady=null,pythonSeq=0,pythonRequest=null,pythonTimer=null,loadTimer=null;
 const storage={get(k){try{return localStorage.getItem("zhixing:"+k)}catch{return null}},set(k,v){try{localStorage.setItem("zhixing:"+k,v)}catch{}}};
 const progressUrl="http://127.0.0.1:19868";
@@ -126,6 +126,8 @@ const demoHeadings={
  "S4-U04":"手动检查轴顺序",
  "S4-U05":"LayerNorm 在哪里做统计",
  "S5-U02":"数据流必须能指出来",
+ "S5-U04":"输出结构要与下游程序连接",
+ "S6-U03":"4. 网页实验为何使用规则回答",
  "S6-U04":"5. 用错误类别指导修改",
  "S6-U05":"4. 执行器负责真正调用",
  "S6-U06":"4. 停止是系统行为的一部分"
@@ -298,7 +300,7 @@ const practiceChecks={
  },
  "S1-U09":{
   reviewHeading:"先认识序列化",
-  note:"网页会换两份 sample.txt。检查生成的 counts.json 能否读成词频对象，并核对空文件的结果。",
+  note:"网页会换两份 sample.txt。写出 counts.json，再读回并打印读回对象与原词频对象的比较结果 True。空文件也要通过。",
   cases:[
    {label:"大小写混合且有重复词",text:"Python ai PYTHON\n",expected:{python:2,ai:1}},
    {label:"空文件",text:"",expected:{}}
@@ -309,9 +311,12 @@ const practiceChecks={
    let actual;
    try{actual=JSON.parse(content);}catch{return "counts.json 无法解析。检查是否用 json.dumps 或 json.dump 保存。";}
    const entries=Object.entries(example.expected);
-   return actual&&typeof actual==="object"&&!Array.isArray(actual)&&
-    Object.keys(actual).length===entries.length&&entries.every(([key,value])=>actual[key]===value)
-    ?"":"词频内容不符。预期是 "+JSON.stringify(example.expected)+"。检查计数规则和写入的对象。";
+   if(!actual||typeof actual!=="object"||Array.isArray(actual)||
+    Object.keys(actual).length!==entries.length||!entries.every(([key,value])=>actual[key]===value)){
+    return "词频内容不符。预期是 "+JSON.stringify(example.expected)+"。检查计数规则和写入的对象。";
+   }
+   return result.stdout.trim().split(/\r?\n/).at(-1)==="True"
+    ?"":"词频文件正确。请再用 json.loads 或 json.load 读回，最后打印它与原词频对象比较的结果 True。";
   }
  },
  "S1-U07":{
@@ -418,9 +423,11 @@ function show(id){
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
- const i=course.indexOf(current),next=current.id.includes("-E")?course[i+1]:course.slice(i+1).find(l=>!l.id.includes("-E"));
- $("previous").disabled=i===0;$("next").disabled=!next;$("next").textContent=next?"下一课 →":"已到主线末课";
- $("previous").onclick=()=>location.hash=course[i-1].id;$("next").onclick=()=>{if(next)location.hash=next.id};
+ const elective=current.id.includes("-E");
+ const sequence=elective?course:course.filter(l=>!l.id.includes("-E"));
+ const i=sequence.indexOf(current),previous=sequence[i-1],next=sequence[i+1];
+ $("previous").disabled=!previous;$("next").disabled=!next;$("next").textContent=next?"下一课 →":elective?"已到最后一课":"已到主线末课";
+ $("previous").onclick=()=>{if(previous)location.hash=previous.id};$("next").onclick=()=>{if(next)location.hash=next.id};
  
  setPracticeTarget(current);
  $("vscode-status").textContent="路径指向本机已有文件。若浏览器询问，请允许打开 Visual Studio Code。";
@@ -454,7 +461,16 @@ $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");
  }
  let open=e.target.closest("[data-open]");if(open){openWorkspace(open.dataset.open==="project");return;}let b=e.target.closest("[data-sample]");if(b){replaceLabDraft(samples[+b.dataset.sample]);$("run-status").textContent="已载入讲义片段。需要前文变量的例子请补齐上下文；PyTorch 等本机依赖请在本机学习站或 VS Code 中继续。";if(matchMedia("(max-width: 1180px)").matches)setLabOpen(true);$("code").focus();}};
 $("code").oninput=()=>storage.set(current.id,$("code").value);
-$("code").onkeydown=e=>{if(e.key==="Tab"){e.preventDefault();let t=e.target;t.setRangeText("    ",t.selectionStart,t.selectionEnd,"end");storage.set(current.id,t.value)}if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}};
+$("code").onkeydown=e=>{
+ if(e.key==="Tab"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+  e.preventDefault();
+  const editor=e.target;
+  editor.setRangeText("    ",editor.selectionStart,editor.selectionEnd,"end");
+  storage.set(current.id,editor.value);
+ }
+ if(e.key==="Escape"&&!document.body.classList.contains("lab-open"))$("stdin").focus();
+ if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}
+};
 async function run(){
  if(busy||!current)return;setRunBusy(true);let id=current.id;$("run-status").textContent="Python 正在执行…";$("output").textContent="";
  const view=lessonView,lesson=current,code=$("code").value,stdin=$("stdin").value;
@@ -497,7 +513,12 @@ if($("undo-draft"))$("undo-draft").onclick=()=>{
  $("run-status").textContent="已恢复替换前的代码和输入。";
 };
 $("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=()=>{if(!progressSavePending)connectProgress();};
-$("toggle-lab").onclick=()=>setLabOpen(!document.body.classList.contains("lab-open"));
+function closeLab(){setLabOpen(false);$("toggle-lab").focus();}
+$("toggle-lab").onclick=()=>{
+ if(document.body.classList.contains("lab-open"))closeLab();
+ else{setLabOpen(true);$("code").focus();}
+};
+$("close-lab").onclick=closeLab;
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
@@ -505,7 +526,9 @@ fetch("./content/course.json").then(r=>{if(!r.ok)throw Error();return r.json()})
 
 $("stdin").oninput=()=>storage.set(current.id+":stdin",$("stdin").value);
 async function openWorkspace(project=false,lesson=current){
- if(!lesson)return;setPracticeTarget(lesson,project);$("vscode-status").textContent="正在打开本机已有文件；如浏览器询问，请选择打开 Visual Studio Code。";window.location.href=$("vscode-link").href;
+ if(!lesson)return;
+ if(!project)$("vscode-status").textContent="正在打开本机已有文件；如浏览器询问，请选择打开 Visual Studio Code。";
+ window.location.href="vscode://file/"+encodeURI(localPracticePath(lesson,project));
 }
 $("open-vscode").onclick=()=>openWorkspace();
 
@@ -513,4 +536,4 @@ $("open-vscode").onclick=()=>openWorkspace();
 $("menu-toggle").onclick=()=>setCourseOpen(!document.body.classList.contains("course-open"));
 
 $("home").onclick=()=>{if(location.hash==="#map")showMap();else location.hash="map"};
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("lab-open")){setLabOpen(false);$("toggle-lab").focus();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("lab-open"))closeLab();});

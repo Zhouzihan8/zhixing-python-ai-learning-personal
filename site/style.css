@@ -103,3 +103,16 @@ body[data-stage] .prose h3{color:var(--stage-ink)}
 .lesson-walkthrough li + li, .practice-steps li + li { margin-top: .5rem; }
 .demo-table-scroll { overflow-x: auto; }
 .demo-table-scroll .metric-table { min-width: 26rem; }
+#close-lab { display: none; }
+@media (max-width: 1180px) {
+  .lab-open .lab-top {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+    background: #f8faf5;
+  }
+  #close-lab { display: inline-block; padding: 5px 8px; font-size: 12px; }
+}
