@@ -24,7 +24,7 @@
    <label for="code">Python 代码 <span>Tab 缩进 · Ctrl / ⌘ + Enter 运行</span></label>
    <textarea id="code" spellcheck="false" aria-label="可编辑 Python 代码"></textarea>
    <label for="stdin">标准输入 <span>每行对应一次 input()</span></label><textarea id="stdin" rows="2" spellcheck="false"></textarea>
-   <div class="actions"><button id="run" class="primary">运行 Python <span>↗</span></button><button id="reset">还原示例</button></div>
+   <div class="actions"><button id="run" class="primary">运行 Python <span>↗</span></button><button id="reset">还原示例</button><button id="undo-draft" type="button" hidden>撤销替换</button></div>
    <p id="run-status" aria-live="polite">网页演示在浏览器临时目录运行；需要保存到本机文件时，请打开 VS Code 实践。</p>
    <pre id="output" aria-label="运行结果" aria-live="polite">输出会出现在这里。</pre>
    <details id="files"><summary>随课文件与生成结果</summary><div id="file-list"></div></details>

@@ -4,6 +4,8 @@ window.StudyDemos = (() => {
  const num=n=>Number(n).toFixed(3);
  const wrap=(title,controls,caption)=>'<figure class="figure teaching-demo"><h3>'+title+'</h3>'+controls+'<div id="demo-result"></div><figcaption>'+caption+'</figcaption></figure>';
  function render(l){
+  if(l.id==="S3-U06")return wrap("批次大小不同时，怎样算总体准确率",'<label><input id="third-batch" type="checkbox">加入第三批（2 / 4）</label>',"先预测加一批后总体准确率，再对照讲义里的汇总代码。每个样本权重相同，所以用总正确数除以总样本数。");
+  if(l.id==="S6-U05")return wrap("请求经过哪一关才会调用函数",'<label>模拟请求 <select id="tool-case"><option value="valid">已注册工具，count = 3</option><option value="bad-count">已注册工具，count = 0</option><option value="unknown">未知工具，count = 3</option></select></label>',"教学演示只模拟检查顺序，不连接模型。选择一种请求，判断执行器会在哪一步停下。");
   if(l.id==="S1-U08")return wrap("先预测哪些列表会一起变",'<label>建立 b 的方式 <select id="copy-kind"><option value="alias">b = a</option><option value="shallow">b = a.copy()</option><option value="deep">b = deepcopy(a)</option></select></label> <label>操作 <select id="copy-operation"><option value="outer">b.append([9])</option><option value="inner">b[0].append(9)</option></select></label> <button id="copy-reveal" type="button">看结果</button>',"每次从 a = [[1], [2]] 开始。预测 a 会不会跟着变，再看结果。");
   if(l.id==="S2-U03")return wrap("同一段代码从哪个目录找文件",'<label>终端当前位置 <select id="cwd-choice"><option>项目</option><option>上一级</option></select></label> <label>路径写法 <select id="path-kind"><option value="relative">Path("data.csv")</option><option value="script">Path(__file__).parent / "data.csv"</option></select></label>',"设 report.py 和 data.csv 都在项目目录。点击两个选项对照查找位置，再回到 VS Code 检查实际终端目录。");
   if(l.id==="S3-M01")return wrap("同一份数据，两种填充值",'<label><input id="fit-all" type="checkbox">拟合时混入验证集</label>',"训练已观测值是 2 和 4，验证已观测值是 90。切换后观察验证集怎样改变训练阶段本应独立得出的规则。");
@@ -29,6 +31,36 @@ window.StudyDemos = (() => {
  function wire(){
   const out=el("demo-result");if(!out)return;
 
+  if(el("third-batch")){
+   const update=()=>{
+    const rows=[[2,2],[1,3]];
+    if(el("third-batch").checked)rows.push([2,4]);
+    const correct=rows.reduce((n,[hits])=>n+hits,0);
+    const total=rows.reduce((n,[,size])=>n+size,0);
+    const mean=rows.reduce((n,[hits,size])=>n+hits/size,0)/rows.length;
+    out.innerHTML='<table class="metric-table"><thead><tr><th>批次</th><th>正确数 / 样本数</th></tr></thead><tbody>'+
+     rows.map(([hits,size],i)=>'<tr><th>'+(i+1)+'</th><td>'+hits+' / '+size+'</td></tr>').join("")+
+     '</tbody></table><p><strong>总体准确率 '+correct+' / '+total+' = '+num(correct/total)+
+     '</strong>。直接平均各批准确率会得到 '+num(mean)+'。</p>';
+   };
+   el("third-batch").onchange=update;
+   update();
+  }
+  if(el("tool-case")){
+   const update=()=>{
+    const kind=el("tool-case").value;
+    const steps=["检查工具名"];
+    if(kind==="unknown")steps.push("拒绝：工具未注册");
+    else{
+     steps.push("进入 average，检查 count");
+     if(kind==="bad-count")steps.push("拒绝：count 必须大于 0");
+     else steps.push("计算 240 / 3 = 80","将结果交还模型");
+    }
+    out.textContent=steps.join(" → ");
+   };
+   el("tool-case").onchange=update;
+   update();
+  }
   if(el("copy-kind")){
    const hide=()=>{out.textContent="先想一想 a 的外层和第一项分别指向哪里。";};
    el("copy-kind").onchange=hide;
@@ -144,8 +176,8 @@ window.StudyDemos = (() => {
       return {label:(i+1)+"."+(j+1),text:part.join(" "),score:part.filter(w=>tokens.has(w)).length};
      });
     });
-    const ranked=chunks.sort((a,b)=>b.score-a.score).slice(0,2);
-    out.innerHTML=ranked.map(r=>"<p>候选片段 "+r.label+" · 分数 "+r.score+"<br>"+r.text+"</p>").join("")+(ranked[0].score?"<p>下一步应把相关原文连同资料编号送入提示，并检查回答是否真的得到支持。</p>":"<p>没有重合词，不应假装已有相关依据。</p>")};
+    const ranked=chunks.filter(chunk=>chunk.score>0).sort((a,b)=>b.score-a.score).slice(0,2);
+    out.innerHTML=ranked.map(r=>"<p>候选片段 "+r.label+" · 分数 "+r.score+"<br>"+r.text+"</p>").join("")+(ranked.length?"<p>下一步应把相关原文连同资料编号送入提示，并检查回答是否真的得到支持。</p>":"<p>没有匹配片段。先换关键词，或根据无证据的情况拒答。</p>")};
    el("retrieval-query").oninput=update;el("chunk-size").onchange=update;update();
   }
  }
