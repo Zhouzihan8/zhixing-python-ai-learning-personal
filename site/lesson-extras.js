@@ -10,6 +10,7 @@ window.LessonExtras = {
 分别验证不存在的文件、存在但为空的文件、正常文件。只有第一种应报告路径错误。保留原来的统计函数，把路径检查放在读取数据的地方。验收是能说出异常发生在哪一层，以及空文件为什么不属于同一种错误。`]
  ],
  "S2-U03": [
+  ["进阶 · 冬令营衔接", "在图上看懂 Git 分支与远程同步", `先用 S2 小项目做一个修改，查看 git status 和 git diff。接着在模拟仓库完成「主要 → 基础」和「远程 → Push & Pull」，每次先预测提交图会怎么变。能说清本地提交为什么还没有出现在远程，就可以回项目继续做。([Learn Git Branching](https://learngitbranching.js.org/?locale=zh_CN))`],
   ["工具实操 · Windows / VS Code", "终端能导入，VS Code 却报错", `在项目目录用 PowerShell 执行 \`py -3 -m venv .venv\`，用 \`.\\.venv\\Scripts\\python.exe -m pip install numpy\` 安装。写一个短脚本打印 \`sys.executable\`，再导入 NumPy 并打印 \`numpy.__version__\`。先用虚拟环境的 Python 直接运行，再用 VS Code 的“运行 Python 文件”运行。
 
 比较两次打印的解释器路径。在命令面板用 Python: Select Interpreter 选择项目的 .venv；新开终端，用 \`python -m pip --version\` 核对 pip 所在目录。如果改用 Notebook，再独立核对右上角内核和单元格里的 \`sys.executable\`。不需要为这个实验修改 PowerShell 执行策略。
@@ -45,12 +46,20 @@ window.LessonExtras = {
 先在本机跑一条短输入，限制 max_new_tokens，记录生成参数和输出。若下载卡住，先区分网络、访问权限和缓存位置；如果模型已加载才报显存错误，先缩短输入并使用适合设备的小模型。保留成功命令和模型 ID，下一课直接复用。`]
  ],
  "S3-U08": [
+  ["进阶 · 冬令营衔接", "从本站实验接到原仓库 Lab", `先用 Lab-07-2 对照 MNIST 如何载入，再用 Lab-10-1 和 Lab-10-2 对照卷积和 MNIST CNN。换成自有图片时走 Lab-10-4，之后用 Lab-10-5 和 Lab-10-6 比较 VGG 与 ResNet，再读 Lab-10-7。阅读时沿数据、模型、损失、训练循环四处定位。([冬令营 PyTorch 实验仓库](https://github.com/deeplearningzerotoall/PyTorch#part-3-convolutional-neural-network))
+
+用 yunjey 的 CNN 和 Deep Residual Network 小节对读 forward，重点找张量形状和残差相加的位置。仓库列的是较早环境，先用本站脚本跑通本机环境，再对照实现。([yunjey PyTorch Tutorial](https://github.com/yunjey/pytorch-tutorial#2-intermediate))`],
+  ["选修 · 模型组", "用同一份 MNIST 比较 MLP 与 CNN", `先修 S3-U05 至 U08。MNIST 图像批次形状是 [N,1,28,28]。MLP 把每张图展平成 784 个数。CNN 让同一组卷积核扫描不同位置，保留二维结构。卷积输出边长为 floor((输入边长 + 2×填充 − 卷积核边长) / 步长) + 1，这里膨胀率取 1。先用本课图示核对默认输出，再只把填充改成 0，预测池化后的边长与 Linear 的输入特征数。([Conv2d 形状说明](https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html))
+
+在 VS Code 打开图像分类实验。用同一个 seed、同一数据划分和同样的训练轮数跑 MLP 和 CNN。两者都返回十类 logits，仍沿用交叉熵。记录验证正确数、分母、准确率和参数规模。([Torchvision MNIST](https://docs.pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html))`],
+  ["进阶 · 模型组", "读懂残差连接，再迁移到图像文件夹", `先完成本课 CNN。对着一个残差块追踪 x → F(x) → F(x) + x。加法两侧的形状需要兼容；若改变通道或分辨率，检查捷径是否用了投影。VGG 可以先读卷积堆叠和池化的位置，再与残差块比较。迁移到 ImageFolder 时按类别分子目录，先分训练与验证集，并检查 class_to_idx 映射一致。随后仍复用 S3 的训练循环。([ResNet 原论文](https://arxiv.org/abs/1512.03385))`],
   ["主线 · 实验记录", "留下一份能复跑的基线", `在现有实验记录里留五项：数据与划分、运行命令与配置、这次只改了什么、基线和本次指标、一个失败样例及下一步。另记随机种子和模型文件位置。用相同验证样本重跑一次，确认记录足以找到同一份输出。这个格式在 S5-U05 和 S6-U04 接着用。`]
  ],
  "S5-U05": [
   ["主线 · 实验记录", "用同一份记录对比两版提示", `复用 S3-U08 的五项记录。固定评测样例、模型和生成参数，只改提示版本。把格式有效数、正确数和 gold 总数分别记下来，附一个失败 ID。缺预测的样例仍留在分母。下次改提示时，先用同一个失败样例验证修正，再重跑整组。`]
  ],
  "S5-E01": [
+  ["进阶 · 冬令营衔接", "沿 base-llm 第三部分继续微调", `先把本站 LoRA 基线跑通，再读第三部分第 1 章的 PEFT 和 LoRA，核对哪些参数可训练。项目确实需要偏好数据时接第 2 章 DPO，部署遇到显存约束时接第 3 章量化。沿用固定评测集，每次只改变训练或推理的一项设置。([Datawhale base-llm](https://github.com/datawhalechina/base-llm))`],
   ["进阶 · 可跳过", "量化与 LoRA 分别改了什么", `先完成 S5-U05 的固定评测。量化用更低精度表示权重等数值，主要影响内存占用和运算，效果取决于硬件和实现。LoRA 冻结基础权重并训练低秩更新，用来适配任务；它仍需要训练数据和验证。两者可以组合。
 
 先记录基础模型结果，再一次只改变一项。报告格式通过率、任务指标和至少一个失败样例，同时记录设备及精度。不要用单条看起来更好的回答判断是否值得微调。`]
@@ -66,7 +75,13 @@ window.LessonExtras = {
 
 固定文档、切分和问题集，比较关键词、向量、合并候选三组。对同一问题同时检查证据命中、引用是否支持回答、无答案时是否拒答，再记录每组耗时。`]
  ],
+ "S6-E02": [
+  ["选修 · 后端组", "把已有实验记录做成可查询的 API", `先学 SQLite 和本课 FastAPI。打开实验记录服务，用 /docs 或 curl 查看请求、状态码与返回体。先 POST 三条记录，再逐次加阶段筛选、标题搜索、分数排序和分页。先筛选，再排序，再取一页；total 是同一筛选条件下的全部条数。用 page=0 检查参数错误，用不存在的标题检查空结果。([FastAPI 查询参数](https://fastapi.tiangolo.com/tutorial/query-params/))`]
+ ],
  "S6-E03": [
+  ["选修 · 后端组", "从本机 SQLite 到 Compose 中的 MySQL", `先在 S6-E02 的实验记录服务跑通请求。再按项目 README 启动 API 和 MySQL。应用在容器里用服务名 db 连接数据库，数据库用卷保存数据，健康检查确认数据库能处理查询后才启动 API。用同一组 API 请求复查筛选与分页。([Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order/))
+
+迁移成冬令营论坛时，再加用户、分区、帖子及外键。用户登录需要密码哈希与身份验证，创建帖子还要检查权限。把 Nginx、缓存和公网访问留到交付时按需求扩展。`],
   ["工具实操 · MySQL / FastAPI", "沿着一次查询检查数据在哪一层出错", `先修 SQLite 实验记录课及 FastAPI 接口课。在本机用 MySQL 客户端确认当前数据库，再执行实验记录表的参数化查询。用项目代码插入一条测试记录，确认提交后新连接也能查询到，再把同一个读取函数接到 GET 接口。
 
 分别查询存在和不存在的实验编号。检查客户端直接查到的行、Python 返回的数据结构和接口返回的 JSON 是否一致。把密钥放在环境变量，SQL 参数交给驱动绑定。若写入失败，先确认事务是否回滚，再查接口报错。`]

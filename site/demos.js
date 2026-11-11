@@ -4,6 +4,7 @@ window.StudyDemos = (() => {
  const num=n=>Number(n).toFixed(3);
  const wrap=(title,controls,caption)=>'<figure class="figure teaching-demo"><h3>'+title+'</h3>'+controls+'<div id="demo-result"></div><figcaption>'+caption+'</figcaption></figure>';
  function render(l){
+  if(l.id==="S3-U08")return wrap("卷积与池化怎样改变图像尺寸",'<label>卷积核 <select id="cnn-kernel"><option>3</option><option>5</option></select></label> <label>步长 <select id="cnn-stride"><option>1</option><option>2</option></select></label> <label>填充 <select id="cnn-padding"><option>0</option><option selected>1</option><option>2</option></select></label>',"输入为 28 × 28 的单通道图像，卷积输出 8 通道，膨胀率为 1。后面固定接 2 × 2、步长 2 的最大池化。先预测，再切换参数核对。");
   if(l.id==="S3-U06")return wrap("批次大小不同时，怎样算总体准确率",'<label><input id="third-batch" type="checkbox">加入第三批（2 / 4）</label>',"先预测加一批后总体准确率，再对照讲义里的汇总代码。每个样本权重相同，所以用总正确数除以总样本数。");
   if(l.id==="S6-U05")return wrap("请求经过哪一关才会调用函数",'<label>模拟请求 <select id="tool-case"><option value="valid">已注册工具，count = 3</option><option value="bad-count">已注册工具，count = 0</option><option value="unknown">未知工具，count = 3</option></select></label>',"教学演示只模拟检查顺序，不连接模型。选择一种请求，判断执行器会在哪一步停下。");
   if(l.id==="S1-U08")return wrap("先预测哪些列表会一起变",'<label>建立 b 的方式 <select id="copy-kind"><option value="alias">b = a</option><option value="shallow">b = a.copy()</option><option value="deep">b = deepcopy(a)</option></select></label> <label>操作 <select id="copy-operation"><option value="outer">b.append([9])</option><option value="inner">b[0].append(9)</option></select></label> <button id="copy-reveal" type="button">看结果</button>',"每次从 a = [[1], [2]] 开始。预测 a 会不会跟着变，再看结果。");
@@ -31,6 +32,19 @@ window.StudyDemos = (() => {
  function wire(){
   const out=el("demo-result");if(!out)return;
 
+  if(el("cnn-kernel")){
+   const update=()=>{
+    const kernel=Number(el("cnn-kernel").value);
+    const stride=Number(el("cnn-stride").value);
+    const padding=Number(el("cnn-padding").value);
+    const conv=Math.floor((28+2*padding-kernel)/stride)+1;
+    const pool=Math.floor((conv-2)/2)+1;
+    out.textContent="输入 [N, 1, 28, 28] → 卷积 [N, 8, "+conv+", "+conv+
+     "] → 池化 [N, 8, "+pool+", "+pool+"] → 展平 [N, "+(8*pool*pool)+"]";
+   };
+   for(const id of ["cnn-kernel","cnn-stride","cnn-padding"])el(id).onchange=update;
+   update();
+  }
   if(el("third-batch")){
    const update=()=>{
     const rows=[[2,2],[1,3]];

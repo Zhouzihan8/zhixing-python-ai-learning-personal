@@ -105,6 +105,7 @@ const demoHeadings={
  "S2-U03":"当前目录与脚本所在目录",
  "S3-M01":"跟着一份小表走完处理过程",
  "S3-U06":"小例子 1：标准库解释样本加权",
+ "S3-U08":"保存权重与恢复训练是两种交付",
  "S6-U05":"4. 执行器负责真正调用"
 };
 function readingBody(lesson){
@@ -164,8 +165,15 @@ function lessonWorkbench(lesson){
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
  const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
- const repoPractice=l.id==="S2-U08"
-  ? '<p><a href="vscode://file/'+encodeURI(localRoot+"/"+practiceFolders.S2+"/03_项目/S2-P01_小型数据分析/接手陌生仓库")+'">打开接手陌生仓库练习</a></p>'
+ const optionalProject={
+  "S2-U08":["S2","S2-P01_小型数据分析/接手陌生仓库","打开接手陌生仓库练习"],
+  "S3-U08":["S3","图像分类扩展","打开 MNIST 图像分类实验"],
+  "S6-E02":["S6","实验记录服务","打开实验记录服务"],
+  "S6-E03":["S6","实验记录服务","打开实验记录服务"]
+ }[l.id];
+ const repoPractice=optionalProject
+  ? '<p><a href="vscode://file/'+encodeURI(localRoot+"/"+practiceFolders[optionalProject[0]]+
+    "/03_项目/"+optionalProject[1])+'">'+optionalProject[2]+'</a></p>'
   : "";
  return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
 }
