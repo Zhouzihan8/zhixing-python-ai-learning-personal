@@ -114,7 +114,10 @@ function readingBody(lesson){
  const at=html.indexOf(anchor);
  const next=at<0?-1:html.indexOf("<h3>",at+anchor.length);
  const visual='<div id="lesson-visual" tabindex="-1">'+diagram(lesson)+'</div>';
- return next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
+ const content=next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
+ const review=practiceChecks[lesson.id]?.reviewHeading;
+ return review?content.replace("<h3>"+inline(review)+"</h3>",
+  '<h3 id="lesson-review" tabindex="-1">'+inline(review)+"</h3>"):content;
 }
 function progressHintLabel(value){return ({none:"未用提示",partial:"使用了部分提示",full:"看过完整示例/答案"})[value]||"未记录提示情况";}
 function progressTime(value){const date=new Date(value);return Number.isNaN(date.valueOf())?value:date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}
@@ -161,7 +164,10 @@ function lessonWorkbench(lesson){
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
  const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
- return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details></section>';
+ const repoPractice=l.id==="S2-U08"
+  ? '<p><a href="vscode://file/'+encodeURI(localRoot+"/"+practiceFolders.S2+"/03_项目/S2-P01_小型数据分析/接手陌生仓库")+'">打开接手陌生仓库练习</a></p>'
+  : "";
+ return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p><p><strong>自己修改：</strong>'+esc(p.change)+'</p><p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
 }
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
@@ -172,6 +178,7 @@ function showMap(){
 let lessonView=0;
 const practiceChecks={
  "S1-U02":{
+  reviewHeading:"输入先得到字符串",
   note:"网页会分别输入 35 和 50、0 和 15。按两行输出合计分钟数和保留两位小数的小时数，例如 85 和 1.42。",
   cases:[
    {label:"35 分钟 + 50 分钟",stdin:"35\n50",expected:["85","1.42"]},
@@ -184,6 +191,7 @@ const practiceChecks={
   }
  },
  "S1-U09":{
+  reviewHeading:"先认识序列化",
   note:"网页会换两份 sample.txt。检查生成的 counts.json 能否读成词频对象，并核对空文件的结果。",
   cases:[
    {label:"大小写混合且有重复词",text:"Python ai PYTHON\n",expected:{python:2,ai:1}},
@@ -199,6 +207,37 @@ const practiceChecks={
     Object.keys(actual).length===entries.length&&entries.every(([key,value])=>actual[key]===value)
     ?"":"词频内容不符。预期是 "+JSON.stringify(example.expected)+"。检查计数规则和写入的对象。";
   }
+ },
+ "S1-U07":{
+  reviewHeading:"参数的几种常用传法",
+  note:"网页会调用你的 count_words，分别检查省略 ignore 和显式传入 ignore='ai'。",
+  cases:[
+   {label:"省略 ignore",suffix:'assert count_words("AI Python AI") == {"ai": 2, "python": 1}, "省略 ignore 时仍要统计所有词"'},
+   {label:"显式传入 ignore",suffix:'assert count_words("AI Python AI", ignore="ai") == {"python": 1}, "传入 ignore 时要跳过指定词"'}
+  ],
+  check(){return "";}
+ },
+ "S3-U06":{
+  review:"lesson-visual",
+  note:"加入第三批 (2, 4) 后，把总体准确率作为第一行小数输出。",
+  cases:[{label:"三个批次合计 5 个正确样本、9 个样本"}],
+  check(result){
+   const first=result.stdout.trim().split(/\r?\n/)[0];
+   return first&&Math.abs(Number(first)-5/9)<0.001
+    ?"":"总体准确率应接近 0.556。先加总正确数和样本数，再相除。";
+  }
+ },
+ "S5-U05":{
+  reviewHeading:"正确率与格式有效率分开",
+  note:"给 gold 增加一条没有预测的负面样例 e。先打印错误编号列表，再单独打印任务正确率小数。",
+  cases:[{label:"漏掉预测的样例仍计入分母"}],
+  check(result){
+   const [ids,score]=result.stdout.trim().split(/\r?\n/);
+   const listed=ids.match(/^\[\s*(.*?)\s*\]$/)?.[1].split(",").map(id=>id.trim().replace(/^['"]|['"]$/g,""));
+   if(!listed||listed.length!==3||!["b","d","e"].every(id=>listed.includes(id)))return "错误编号应包含 b、d、e。遍历 gold 的全部编号，包含没有预测的条目。";
+   return score?.trim()&&Math.abs(Number(score)-0.4)<0.001
+    ?"":"正确率应是 2 / 5 = 0.4。分母使用 gold 的样例总数。";
+  }
  }
 };
 function setRunBusy(running){
@@ -212,14 +251,16 @@ async function checkPractice(){
  const view=lessonView,code=$("code").value,stdin=$("stdin").value;
  const report=$("practice-results");
  setRunBusy(true);
- report.textContent="正在用两组输入检查…";
+ $("practice-review").hidden=true;
+ report.textContent="正在检查…";
  try{
   const messages=[];
   let passed=0;
   for(const example of spec.cases){
    const inputs={...lesson.files};
    if(example.text!==undefined)inputs["sample.txt"]=example.text;
-   const result=await executeInPythonWorker({id:lesson.id,code,stdin:example.stdin??stdin,files:inputs});
+   const submitted=example.suffix?code+"\n\n"+example.suffix:code;
+   const result=await executeInPythonWorker({id:lesson.id,code:submitted,stdin:example.stdin??stdin,files:inputs});
    if(lessonView!==view)return;
    const issue=result.exitCode===0?spec.check(result,example):
     (result.error||result.stderr||"程序运行失败").trim().split(/\r?\n/).at(-1);
@@ -228,6 +269,7 @@ async function checkPractice(){
    if(issue&&result.stdout)messages.push("实际输出："+result.stdout.trim());
   }
   report.textContent=passed+" / "+spec.cases.length+" 组通过\n"+messages.join("\n");
+  $("practice-review").hidden=passed===spec.cases.length;
  }catch(error){
   if(lessonView===view)report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message;
  }finally{setRunBusy(false);}
@@ -235,8 +277,16 @@ async function checkPractice(){
 $("task").insertAdjacentHTML("afterend",
  '<div id="practice-check" hidden><p id="practice-check-note"></p>'+
  '<button type="button" id="check-practice">检查我的改动</button>'+
- '<p id="practice-results" role="status" style="white-space:pre-wrap"></p></div>');
+ '<p id="practice-results" role="status" style="white-space:pre-wrap"></p>'+
+ '<button type="button" id="practice-review" hidden>回看相关讲解</button></div>');
 $("check-practice").onclick=checkPractice;
+$("practice-review").onclick=()=>{
+ const section=$(practiceChecks[current?.id]?.review||"lesson-review")||$("lesson-notes");
+ if(!section)return;
+ setLabOpen(false);
+ section.scrollIntoView({block:"start"});
+ section.focus({preventScroll:true});
+};
 function replaceLabDraft(code, stdin=$("stdin").value){
  const previous={code:$("code").value,stdin:$("stdin").value};
  if(previous.code===code&&previous.stdin===stdin)return;
@@ -258,6 +308,7 @@ function show(id){
  $("practice-check").hidden=!practiceCheck;
  $("practice-check-note").textContent=practiceCheck?.note||"";
  $("practice-results").textContent="";
+ $("practice-review").hidden=true;
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
