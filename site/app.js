@@ -170,6 +170,73 @@ function showMap(){
  $("open-local-study").disabled=true;$("toggle-lab").hidden=true;nav($("search").value);window.scrollTo(0,0);
 }
 let lessonView=0;
+const practiceChecks={
+ "S1-U02":{
+  note:"网页会分别输入 35 和 50、0 和 15。按两行输出合计分钟数和保留两位小数的小时数，例如 85 和 1.42。",
+  cases:[
+   {label:"35 分钟 + 50 分钟",stdin:"35\n50",expected:["85","1.42"]},
+   {label:"0 分钟 + 15 分钟",stdin:"0\n15",expected:["15","0.25"]}
+  ],
+  check(result,example){
+   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim());
+   return lines.length===2&&lines.every((line,i)=>line===example.expected[i])
+    ?"":"应依次输出 "+example.expected.join(" 和 ")+"。检查是否读了两行，以及第二行是否用了 .2f。";
+  }
+ },
+ "S1-U09":{
+  note:"网页会换两份 sample.txt。检查生成的 counts.json 能否读成词频对象，并核对空文件的结果。",
+  cases:[
+   {label:"大小写混合且有重复词",text:"Python ai PYTHON\n",expected:{python:2,ai:1}},
+   {label:"空文件",text:"",expected:{}}
+  ],
+  check(result,example){
+   const content=result.files?.["counts.json"];
+   if(content===undefined)return "没有生成 counts.json。检查文件名和写入路径。";
+   let actual;
+   try{actual=JSON.parse(content);}catch{return "counts.json 无法解析。检查是否用 json.dumps 或 json.dump 保存。";}
+   const entries=Object.entries(example.expected);
+   return actual&&typeof actual==="object"&&!Array.isArray(actual)&&
+    Object.keys(actual).length===entries.length&&entries.every(([key,value])=>actual[key]===value)
+    ?"":"词频内容不符。预期是 "+JSON.stringify(example.expected)+"。检查计数规则和写入的对象。";
+  }
+ }
+};
+function setRunBusy(running){
+ busy=running;
+ $("run").disabled=running;
+ $("check-practice").disabled=running;
+}
+async function checkPractice(){
+ const lesson=current,spec=practiceChecks[lesson?.id];
+ if(busy||!spec)return;
+ const view=lessonView,code=$("code").value,stdin=$("stdin").value;
+ const report=$("practice-results");
+ setRunBusy(true);
+ report.textContent="正在用两组输入检查…";
+ try{
+  const messages=[];
+  let passed=0;
+  for(const example of spec.cases){
+   const inputs={...lesson.files};
+   if(example.text!==undefined)inputs["sample.txt"]=example.text;
+   const result=await executeInPythonWorker({id:lesson.id,code,stdin:example.stdin??stdin,files:inputs});
+   if(lessonView!==view)return;
+   const issue=result.exitCode===0?spec.check(result,example):
+    (result.error||result.stderr||"程序运行失败").trim().split(/\r?\n/).at(-1);
+   if(!issue)passed++;
+   messages.push(example.label+" · "+(issue||"通过"));
+   if(issue&&result.stdout)messages.push("实际输出："+result.stdout.trim());
+  }
+  report.textContent=passed+" / "+spec.cases.length+" 组通过\n"+messages.join("\n");
+ }catch(error){
+  if(lessonView===view)report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message;
+ }finally{setRunBusy(false);}
+}
+$("task").insertAdjacentHTML("afterend",
+ '<div id="practice-check" hidden><p id="practice-check-note"></p>'+
+ '<button type="button" id="check-practice">检查我的改动</button>'+
+ '<p id="practice-results" role="status" style="white-space:pre-wrap"></p></div>');
+$("check-practice").onclick=checkPractice;
 function replaceLabDraft(code, stdin=$("stdin").value){
  const previous={code:$("code").value,stdin:$("stdin").value};
  if(previous.code===code&&previous.stdin===stdin)return;
@@ -187,6 +254,10 @@ function show(id){
  if(id==="map"||!id){showMap();return;}
  document.body.classList.remove("is-map");setLabOpen(false);setCourseOpen(false);$("open-local-study").disabled=false;$("toggle-lab").hidden=false;
  const found=course.find(l=>l.id===id);if(!found){if(course.length)show(course[0].id);return;}current=found;samples=[];document.body.dataset.stage=current.stage;
+ const practiceCheck=practiceChecks[current.id];
+ $("practice-check").hidden=!practiceCheck;
+ $("practice-check-note").textContent=practiceCheck?.note||"";
+ $("practice-results").textContent="";
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
@@ -228,7 +299,7 @@ $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");
 $("code").oninput=()=>storage.set(current.id,$("code").value);
 $("code").onkeydown=e=>{if(e.key==="Tab"){e.preventDefault();let t=e.target;t.setRangeText("    ",t.selectionStart,t.selectionEnd,"end");storage.set(current.id,t.value)}if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}};
 async function run(){
- if(busy||!current)return;busy=true;$("run").disabled=true;let id=current.id;$("run-status").textContent="Python 正在执行…";$("output").textContent="";
+ if(busy||!current)return;setRunBusy(true);let id=current.id;$("run-status").textContent="Python 正在执行…";$("output").textContent="";
  const view=lessonView,lesson=current,code=$("code").value,stdin=$("stdin").value;
  try{
   const data=await executeInPythonWorker({id,code,stdin,files:lesson.files||{}});
@@ -250,7 +321,7 @@ async function run(){
   $("run-status").textContent=status;
   files(data.files||{});
  }
- catch(error){if(lessonView!==view)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{busy=false;$("run").disabled=false;}
+ catch(error){if(lessonView!==view)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{setRunBusy(false);}
 }
 $("run").onclick=run;$("reset").onclick=()=>{
  replaceLabDraft(current.starter,current.stdin||"");
