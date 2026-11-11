@@ -58,8 +58,21 @@ function diagram(l){
  "S2-U01":[["类的定义","创建实例","self 关联实例","调用方法"],"类组织数据与操作；不同实例可以有自己的状态。"],
  "S2-U04":[["列表数据","数组与 dtype","shape / 索引","复制或视图"],"先明确形状，再判断修改共享了哪一层数据。"],
  "S2-U05":[["检查 shape","对齐尾部维度","广播规则","逐元素结果"],"逐元素运算与矩阵乘法使用不同的形状规则。"],
+ "S2-U06":[["读 CSV","核对列与类型","处理缺失或重复","汇总后抽查"],"对照清理前后行数，再核对一行原数据怎样进入汇总。"],
+ "S2-U07":[["先算统计量","为比较选图","标单位与刻度","核对原始值"],"改变纵轴范围会改变观感。先检查图上的量和原表一致。"],
+ "S2-U08":[["读取与检查","清理成表","按组汇总","保存图与结果"],"用同一输入复跑，再换一份 CSV 看每一步是否仍成立。"],
+ "S3-U01":[["定义预测目标","划分数据","跑基线","比较同一指标"],"先规定测试集的用途和指标，再决定模型。"],
+ "S3-U02":[["数据与标签","查看 shape","核对 dtype / device","送入计算"],"把张量送入模型前先判断每一维的含义和数据类型。"],
  "S3-U03":[["输入 x","前向计算 y","损失 L","链式法则 dL/dx"],"梯度说明局部变化率；更新参数是后续单独的一步。"],
  "S3-U08":[["模型与配置","保存状态","重新构建模型","加载后预测"],"权重文件不自动说明所有运行条件，配置与数据处理同样需要保留。"],
+ "S3-U07":[["训练曲线","验证曲线","判断拟合状态","只改一个条件"],"训练损失继续下降、验证损失反而升高时，检查过拟合和评价口径。"],
+ "S4-U02":[["源序列","编码器表示","解码器读表示","逐步输出"],"在编码器–解码器结构中，交叉注意力让解码器读取源序列表示。"],
+ "S4-U05":[["残差主路 x","分支 F(x)","同形状相加","按结构归一化"],"找到两个相加的张量。归一化在分支前还是相加后，取决于具体块的写法。"],
+ "S5-U01":[["预训练学预测","微调适配任务","推理生成结果"],"训练步骤用损失更新权重，普通推理只用已有权重计算。"],
+ "S5-U06":[["固定样例与配置","逐条执行","保存原始输出","汇总失败编号"],"把提示和生成参数随实验记录保存，后续才能复查差异。"],
+ "S5-E01":[["冻结基础权重","训练低秩更新","验证任务效果","保存适配器"],"用同一验证集对比基线和微调结果，并记录模型与适配器的对应关系。"],
+ "S6-U01":[["构建请求","检查状态码","解析 JSON","校验必需字段"],"请求成功、JSON 可解析和业务字段有效是三次不同的检查。"],
+ "S6-U07":[["本轮问题","选相关记忆","加入工具观察","组装请求"],"记录里有一条偏好，只有组装进本轮上下文后才会被模型看到。"],
  "S5-U04":[["明确任务","给出示例","约束输出","固定样例比较"],"提示的变化需要用相同标准比较，不能只挑成功结果。"],
  "S6-U05":[["模型请求工具","检查参数","执行 Python 函数","结果回传"],"提出调用的是模型，实际运行函数的是程序。"],
  "S6-U06":[["读取状态","选择动作","执行工具","观察结果","结束或继续"],"每一轮检查停止条件，不能把无限循环当成自主能力。"]};
@@ -103,14 +116,19 @@ function files(items){$("file-list").innerHTML=Object.entries(items).map(([n,b])
 const demoHeadings={
  "S1-U08":"浅拷贝只复制外层",
  "S2-U03":"当前目录与脚本所在目录",
+ "S2-U02":"迭代器与生成器",
  "S2-U05":"乘法的两种意义",
  "S3-M01":"跟着一份小表走完处理过程",
+ "S3-U05":"交叉熵惩罚什么",
  "S3-U06":"小例子 1：标准库解释样本加权",
  "S3-U08":"保存权重与恢复训练是两种交付",
  "S4-U03":"两种掩码解决不同问题",
+ "S4-U04":"手动检查轴顺序",
+ "S4-U05":"LayerNorm 在哪里做统计",
  "S5-U02":"数据流必须能指出来",
  "S6-U04":"5. 用错误类别指导修改",
- "S6-U05":"4. 执行器负责真正调用"
+ "S6-U05":"4. 执行器负责真正调用",
+ "S6-U06":"4. 停止是系统行为的一部分"
 };
 function readingBody(lesson){
  const html=markdown(lesson.body);
@@ -137,8 +155,71 @@ function progressHintLabel(value){return ({none:"未用提示",partial:"使用�
 function progressTime(value){const date=new Date(value);return Number.isNaN(date.valueOf())?value:date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}
 function progressPanel(l){const record=progressData.records[l.id],status=record?.status||"尚未记录",statusClass={"学习中":"progress-learning","需补练":"progress-practice","初步掌握":"progress-initial","稳定掌握":"progress-stable"}[status]||"",canReuse=status==="初步掌握"||status==="稳定掌握",practiceCount=(progressData.events||[]).filter(event=>event.lessonId===l.id&&event.action==="practice").length,last=record?'<aside class="progress-last"><strong>上次记录 · '+esc(progressTime(record.updatedAt||""))+'</strong><p>'+esc(record.note||"没有填写依据或卡点。")+'</p><small>'+progressHintLabel(record.hintLevel)+(practiceCount?' · 本课已记录 '+practiceCount+' 次补练':'')+'</small></aside>':'';return '<section class="progress-card"><div class="progress-heading"><h2>本课学习记录</h2><span class="progress-badge '+statusClass+'">'+esc(status)+'</span></div><p>此记录会影响下一步推荐。网站读取状态、提示级别和补练次数；文字卡点留作下次继续分析，不以阅读或运行示例自动判定掌握。</p>'+last+'<label for="progress-note">本次依据或卡点 <span>补练写遇到的具体问题；独立完成写你自己做成了什么</span></label><textarea id="progress-note" rows="2" maxlength="1000" placeholder="例如：循环结束后列表长度不对，我还没定位是哪次更新出错"></textarea><label for="progress-hint">本次提示使用情况 <span>如标记独立完成或稳定复用，必须选择“未用提示”</span></label><select id="progress-hint"><option value="">选择本次提示使用情况</option><option value="none">未用提示</option><option value="partial">使用了部分提示</option><option value="full">看过完整示例/答案</option></select><div class="progress-actions"><button data-progress-action="learning">继续学习</button><button data-progress-action="practice">需要补练</button><button data-progress-action="independent">本次独立完成</button><button data-progress-action="reuse" '+(!canReuse?'disabled title="先记录一次未使用提示的独立完成，再在后续任务中独立复用。"':'')+'>后续任务复用成功</button></div><p class="progress-rule">“本次独立完成”和“后续任务复用成功”要求至少 8 个字的真实证据；使用了提示就记录为“需要补练”。</p><p id="progress-message" class="progress-message" aria-live="polite">'+(progressConnected?'已连接本机记录助手，数据只写入本机。':'先启动本机助手，再点右上角“同步本机记录”。')+'</p></section>';}
 function refreshProgressViews(){nav($("search").value);if(current){const note=$("reading").querySelector("#progress-note")?.value||"",hint=$("reading").querySelector("#progress-hint")?.value||"",panel=$("reading").querySelector(".progress-card");if(panel){panel.outerHTML=progressPanel(current);$("reading").querySelector("#progress-note").value=note;$("reading").querySelector("#progress-hint").value=hint;}}else showMap();}
-async function connectProgress(){const status=$("sync-status"),message=$("progress-message");status.textContent="正在连接…";if(message)message.textContent="正在读取本机学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"GET",cache:"no-store",credentials:"omit"});const data=await response.json();if(!response.ok||data.version!==1)throw new Error(data.error||"助手版本不匹配");progressData={records:data.records||{},events:data.events||[],updatedAt:data.updatedAt||null};progressConnected=true;storage.set("progress",JSON.stringify(progressData));status.textContent="已连接本机";status.className="sync-connected";status.title="本机助手已连接；学习记录只保存在本机。";$("connect-progress").textContent="刷新本机记录";refreshProgressViews();const hint=$("progress-message");if(hint)hint.textContent="已从本机读取学习记录；记录仍保存在电脑中。";return true;}catch(error){progressConnected=false;status.textContent="未连接";status.className="sync-disconnected";status.title="本机助手未连接。请运行个人学习/00_学习管理/进度同步助手/启动学习进度助手.bat 并允许浏览器访问本机网络；再点此按钮重试。课程仍可使用。";if(message)message.textContent=(error.message&&error.message!=="Failed to fetch"?error.message+"。":"连接失败。")+"请确认本机“学习进度同步助手”正在运行，并允许网站访问本机网络。课程阅读和练习仍可继续。";return false;}}
-async function saveProgress(action){if(!current)return;const note=$("progress-note")?.value.trim()||"",hintLevel=$("progress-hint")?.value||"";if(["practice","independent","reuse"].includes(action)&&note.length<8){$("progress-message").textContent="请至少写 8 个字，记录具体卡点或本次独立完成的证据。";$("progress-note").focus();return;}if(["practice","independent","reuse"].includes(action)&&!hintLevel){$("progress-message").textContent="请选择本次提示使用情况，方便后续判断这项知识是否能独立使用。";$("progress-hint").focus();return;}if(["independent","reuse"].includes(action)&&hintLevel!=="none"){ $("progress-message").textContent="使用提示后完成不能记作独立掌握；请改记为“需要补练”，并保留提示级别。";$("progress-hint").focus();return;}if(!progressConnected&&!await connectProgress())return;const message=$("progress-message");message.textContent="正在保存本次学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"POST",cache:"no-store",credentials:"omit",headers:{"Content-Type":"application/json"},body:JSON.stringify({lessonId:current.id,action,note,hintLevel})});const data=await response.json();if(!response.ok)throw new Error(data.error||"保存失败");progressData=data.progress;storage.set("progress",JSON.stringify(progressData));$("progress-note").value="";$("progress-hint").value="";refreshProgressViews();const updated=$("progress-message");if(updated)updated.textContent="已保存到本机 · "+(progressLabels[action]||"学习记录")+(data.warning?"；Markdown 摘要未能更新，请检查文件占用。":"");}catch(error){if(error instanceof TypeError){progressConnected=false;$("sync-status").textContent="未连接";$("sync-status").className="sync-disconnected";$("connect-progress").textContent="同步本机记录";}const updated=$("progress-message");if(updated)updated.textContent=error.message||"保存失败。请确认本机助手仍在运行后重试。";}}
+let progressSyncRequest=null;
+let progressSavePending=false;
+function connectProgress(){
+ if(!progressSyncRequest){
+  progressSyncRequest=readProgressFromHelper().finally(()=>{progressSyncRequest=null;});
+ }
+ return progressSyncRequest;
+}
+async function readProgressFromHelper(){const status=$("sync-status"),message=$("progress-message");status.textContent="正在连接…";if(message)message.textContent="正在读取本机学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"GET",cache:"no-store",credentials:"omit"});const data=await response.json();if(!response.ok||data.version!==1)throw new Error(data.error||"助手版本不匹配");progressData={records:data.records||{},events:data.events||[],updatedAt:data.updatedAt||null};progressConnected=true;storage.set("progress",JSON.stringify(progressData));status.textContent="已连接本机";status.className="sync-connected";status.title="本机助手已连接；学习记录只保存在本机。";$("connect-progress").textContent="刷新本机记录";refreshProgressViews();const hint=$("progress-message");if(hint)hint.textContent="已从本机读取学习记录；记录仍保存在电脑中。";return true;}catch(error){progressConnected=false;status.textContent="未连接";status.className="sync-disconnected";status.title="本机助手未连接。请运行个人学习/00_学习管理/进度同步助手/启动学习进度助手.bat 并允许浏览器访问本机网络；再点此按钮重试。课程仍可使用。";if(message)message.textContent=(error.message&&error.message!=="Failed to fetch"?error.message+"。":"连接失败。")+"请确认本机“学习进度同步助手”正在运行，并允许网站访问本机网络。课程阅读和练习仍可继续。";return false;}}
+async function saveProgress(action){
+ if(!current||progressSavePending)return;
+ const lessonId=current.id,view=lessonView;
+ const rawNote=$("progress-note")?.value||"";
+ const note=rawNote.trim(),hintLevel=$("progress-hint")?.value||"";
+ const requiresEvidence=["practice","independent","reuse"].includes(action);
+ const report=text=>{
+  if(lessonView!==view)return;
+  const message=$("progress-message");
+  if(message)message.textContent=text;
+ };
+ if(requiresEvidence&&note.length<8){
+  report("请至少写 8 个字，记录具体卡点或本次独立完成的证据。");
+  $("progress-note").focus();
+  return;
+ }
+ if(requiresEvidence&&!hintLevel){
+  report("请选择本次提示使用情况，方便后续判断这项知识是否能独立使用。");
+  $("progress-hint").focus();
+  return;
+ }
+ if(["independent","reuse"].includes(action)&&hintLevel!=="none"){
+  report("使用提示后完成不能记作独立掌握；请改记为“需要补练”，并保留提示级别。");
+  $("progress-hint").focus();
+  return;
+ }
+ progressSavePending=true;
+ try{
+  if((progressSyncRequest||!progressConnected)&&!await connectProgress())return;
+  report("正在保存本次学习记录…");
+  const response=await fetch(progressUrl+"/api/progress",{
+   method:"POST",cache:"no-store",credentials:"omit",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({lessonId,action,note,hintLevel})
+  });
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"保存失败");
+  progressData=data.progress;
+  storage.set("progress",JSON.stringify(progressData));
+  if(lessonView===view&&$("progress-note").value===rawNote&&$("progress-hint").value===hintLevel){
+   $("progress-note").value="";
+   $("progress-hint").value="";
+  }
+  refreshProgressViews();
+  report("已保存到本机 · "+(progressLabels[action]||"学习记录")+
+   (data.warning?"；Markdown 摘要未能更新，请检查文件占用。":""));
+ }catch(error){
+  if(error instanceof TypeError){
+   progressConnected=false;
+   $("sync-status").textContent="未连接";
+   $("sync-status").className="sync-disconnected";
+   $("connect-progress").textContent="同步本机记录";
+  }
+  report(error.message||"保存失败。请确认本机助手仍在运行后重试。");
+ }finally{progressSavePending=false;}
+}
 function resetPythonWorker(error){clearTimeout(pythonTimer);clearTimeout(loadTimer);pythonWorker?.terminate();pythonWorker=null;pythonReady=null;const request=pythonRequest;pythonRequest=null;if(request)request.reject(error||new Error("浏览器 Python 已重置。"));}
 function ensurePythonWorker(){
  if(pythonReady)return pythonReady;
@@ -415,7 +496,7 @@ if($("undo-draft"))$("undo-draft").onclick=()=>{
  $("undo-draft").hidden=true;
  $("run-status").textContent="已恢复替换前的代码和输入。";
 };
-$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=connectProgress;
+$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=()=>{if(!progressSavePending)connectProgress();};
 $("toggle-lab").onclick=()=>setLabOpen(!document.body.classList.contains("lab-open"));
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 

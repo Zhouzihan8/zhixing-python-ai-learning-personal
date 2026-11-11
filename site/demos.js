@@ -4,6 +4,10 @@ window.StudyDemos = (() => {
  const num=n=>Number(n).toFixed(3);
  const wrap=(title,controls,caption)=>'<figure class="figure teaching-demo"><h3>'+title+'</h3>'+controls+'<div id="demo-result"></div><figcaption>'+caption+'</figcaption></figure>';
  function render(l){
+  if(l.id==="S2-U02")return wrap("逐项取值，看生成器停在哪里",'<button type="button" id="generator-next">取下一项</button> <button type="button" id="generator-reset">重新创建</button>',"模拟依次 yield AI、Python、RAG 的生成器。每次只向前一步。耗尽后重新遍历同一个对象也不会产生值。");
+  if(l.id==="S3-U05")return wrap("同一组 logits，换一个真实类别",'<label>真实类别 <select id="target-class"><option>0</option><option>1</option><option>2</option></select></label>',"固定 logits [2, 1, 0]。选择标签只会改变损失，预测和概率保持不变。PyTorch 的 CrossEntropyLoss 接收原始 logits 和类别索引。");
+  if(l.id==="S4-U04")return wrap("拆头和合并时，哪些轴在移动",'<label>头数 <select id="head-count"><option>2</option><option>3</option><option>4</option></select></label>',"固定三个词元、每个六维。先只演示形状变化，真实多头注意力还会进行 Q、K、V 投影和逐头计算。");
+  if(l.id==="S6-U06")return wrap("一步一步看 Agent 为什么停止",'<label>最大步数 <select id="agent-budget"><option>1</option><option selected>2</option><option>3</option></select></label> <button type="button" id="agent-next">执行下一步</button> <button type="button" id="agent-reset">重置</button>',"重放本课的固定动作：先调用 double(6)，再返回最终答复。把预算设为 1，观察工具已有结果时为什么仍没有最终答复。");
   if(l.id==="S5-U02")return wrap("看见补齐后的 ID 和掩码",'<label><input id="token-pad-short" type="checkbox" checked>第二条输入只有一个词元</label>',"教学示例用 0 补齐，掩码 1 表示有效输入，0 表示填充。真实模型的填充方向和填充 ID 以 tokenizer 配置为准。");
   if(l.id==="S6-U04")return wrap("同样答错，下一步查哪里",'<label>评测样例 <select id="rag-diagnosis"><option value="q2">q2 · 标准 c3，召回 c2、c4，答错</option><option value="q3">q3 · 标准 c5，召回 c5、c6，答错</option><option value="none">新增题 · 无标准证据，仍给出断言</option></select></label> <button type="button" id="rag-reveal">核对排查顺序</button>',"q2 和 q3 来自本课代码。先判断是没找到证据、找到了却答错，还是应当拒答。");
   if(l.id==="S3-U08")return wrap("卷积与池化怎样改变图像尺寸",'<label>卷积核 <select id="cnn-kernel"><option>3</option><option>5</option></select></label> <label>步长 <select id="cnn-stride"><option>1</option><option>2</option></select></label> <label>填充 <select id="cnn-padding"><option>0</option><option selected>1</option><option>2</option></select></label>',"输入为 28 × 28 的单通道图像，卷积输出 8 通道，膨胀率为 1。后面固定接 2 × 2、步长 2 的最大池化。先预测，再切换参数核对。");
@@ -23,7 +27,7 @@ window.StudyDemos = (() => {
   if(l.id==="S1-U05")return wrap("一轮一轮看字典累加",'<button id="word-step">处理下一个词</button> <button id="word-reset">重新开始</button>',"固定文本 Python AI Python：每处理一项，观察旧次数如何变成新次数。图解与本课 Python 使用相同计数逻辑。");
   if(["S2-U04","S2-U05"].includes(l.id))return wrap("广播不是把维度随意凑在一起",'<label>B 的形状 <select id="broadcast-shape"><option value="1,3">[1, 3]</option><option value="2,1">[2, 1]</option><option value="2,2">[2, 2]（不兼容）</option></select></label>',"A 固定为 [[1,2,3],[4,5,6]]，形状 [2,3]；从尾部对齐，维度必须相等或其中一个为 1。这里显示逐元素相加，不是矩阵乘法。");
   if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step=".05" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
-  if(["S4-U03","S4-U04","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
+  if(["S4-U03","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
   if(["S5-U03","S5-U04"].includes(l.id))return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
   if(["S6-U02","S6-U03"].includes(l.id))return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
   return "";
@@ -33,6 +37,67 @@ window.StudyDemos = (() => {
  }
  function wire(){
   const out=el("demo-result");if(!out)return;
+  if(el("generator-next")){
+   const words=["AI","Python","RAG"];
+   let position=0;
+   el("generator-reset").onclick=()=>{
+    position=0;
+    out.textContent="新生成器还没有取出任何值。";
+   };
+   el("generator-next").onclick=()=>{
+    if(position===words.length){
+     out.textContent="已耗尽。next() 会得到 StopIteration，for 循环会结束。";
+     return;
+    }
+    const word=words[position++];
+    out.textContent="yield "+word+"（长度 "+word.length+"），已取 "+position+" / "+words.length+" 项。";
+   };
+   el("generator-reset").onclick();
+  }
+  if(el("target-class")){
+   const logits=[2,1,0];
+   const exp=logits.map(score=>Math.exp(score-2));
+   const total=exp.reduce((sum,value)=>sum+value,0);
+   const probabilities=exp.map(value=>value/total);
+   const update=()=>{
+    const target=Number(el("target-class").value);
+    out.textContent="概率 ["+probabilities.map(num).join(", ")+"]，预测类别 0。真实类别 "+target+
+     " 的概率是 "+num(probabilities[target])+"，交叉熵 −ln(p) = "+num(-Math.log(probabilities[target]))+"。";
+   };
+   el("target-class").onchange=update;
+   update();
+  }
+  if(el("head-count")){
+   const update=()=>{
+    const heads=Number(el("head-count").value);
+    const width=6/heads;
+    out.textContent=Number.isInteger(width)
+     ? "输入 [1,3,6] → 拆分 [1,3,"+heads+","+width+"] → 换轴 [1,"+heads+",3,"+width+
+       "] → 换回并拼接 [1,3,6]。轴顺序是批次、头、词元、每头维度。"
+     : "六维不能均分给四个头。先检查隐藏维度能否整除头数。";
+   };
+   el("head-count").onchange=update;
+   update();
+  }
+  if(el("agent-budget")){
+   let step=0;
+   const reset=()=>{
+    step=0;
+    el("agent-next").disabled=false;
+    out.textContent="待执行。观察记录 []。";
+   };
+   el("agent-next").onclick=()=>{
+    step++;
+    const exhausted=Number(el("agent-budget").value)===1;
+    out.textContent=step===1
+     ? "第 1 步：double(6) → 12，观察记录 [12]。"+(exhausted?"步数用完，尚无最终答案。":"还可以执行下一步。")
+     : "第 2 步：产生最终答案，停止。观察记录 [12]。";
+    el("agent-next").disabled=exhausted||step===2;
+   };
+   el("agent-budget").onchange=reset;
+   el("agent-reset").onclick=reset;
+   reset();
+  }
 
   if(el("token-pad-short")){
    const update=()=>{
