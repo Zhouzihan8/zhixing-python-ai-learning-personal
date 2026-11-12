@@ -203,31 +203,32 @@ window.CodeNotes = {
     if (text.startsWith("#")) return "注释：给读者看的说明，Python 执行时会忽略这一行。";
     if (text.startsWith("@")) return "装饰器：把下面定义的函数交给一个包装规则处理；要看它具体做什么，查对应导入或正文解释。";
     if (/^(from|import)\s/.test(text)) return "导入：把模块或第三方库中的名字引入当前文件，便于后续使用。";
-    if (/^class\s/.test(text)) return "定义类：描述之后创建的对象拥有哪些数据和操作；缩进块是类的内容。";
-    if (/^def\s/.test(text)) return "定义函数：把缩进块里的步骤命名起来；定义时不执行，调用时才执行。";
+    const calls = [...text.matchAll(/(?:\b|\.)([A-Za-z_]\w*)\s*\(/g)].map(m => m[1]);
+    const uniqueCalls = [...new Set(calls)].filter(name => !["if", "for", "while", "with", "def", "class", "return", "lambda"].includes(name));
+    const callNotes = () => uniqueCalls.map(name => {
+      if (classNames.has(name)) return "本例定义的 `" + name + "` 类会创建对象；括号中的值传给初始化方法。";
+      if (definedNames.has(name)) return "本例定义的 `" + name + "()` 函数，向上查找它的 def 看具体步骤。";
+      return "`" + name + "()`：" + (this.symbols[name] || "请结合导入来源和本节正文确认这个函数或方法的用途。");
+    }).join(" ");
+    const withCalls = explanation => explanation + (callNotes() ? " " + callNotes() : "");
+    if (/^class\s/.test(text)) return "定义类：描述之后创建的对象拥有哪些数据和操作；若括号中有父类，本类会继承它的部分能力；缩进块是类的内容。";
+    if (/^def\s/.test(text)) return "定义函数：括号里的名字是调用时接收的参数；缩进块里的步骤定义函数行为。定义时不执行，调用时才执行。";
     if (/^(if|elif|else|for|while|try|except|finally|with|match|case)\b/.test(text)) {
-      if (/^if\b|^elif\b/.test(text)) return "条件分支：条件为真时执行下一段缩进代码；冒号后开始代码块。";
-      if (/^else\b/.test(text)) return "备选分支：前面的条件都不成立时，执行这一段缩进代码。";
-      if (/^for\b/.test(text)) return "循环：从可迭代对象逐项取值，每次把当前值绑定到循环变量后执行代码块。";
-      if (/^while\b/.test(text)) return "条件循环：只要条件仍为真就重复执行；要确认循环中有机会让条件变假。";
-      if (/^with\b/.test(text)) return "上下文管理：进入代码块时准备资源，离开时自动完成清理，例如关闭文件。";
-      if (/^try\b/.test(text)) return "异常处理：标出可能失败的代码；后面的 except 应只处理预期错误。";
-      if (/^except\b/.test(text)) return "异常分支：仅在 try 中出现匹配错误时执行；不要用空 except 隐藏问题。";
-      return "流程控制语句：和相邻缩进块配合，决定程序在哪种情况下继续或收尾。";
+      if (/^if\b|^elif\b/.test(text)) return withCalls("条件分支：条件为真时执行下一段缩进代码；冒号后开始代码块。");
+      if (/^else\b/.test(text)) return withCalls("备选分支：前面的条件都不成立时，执行这一段缩进代码。");
+      if (/^for\b/.test(text)) return withCalls("循环：从可迭代对象逐项取值，每次把当前值绑定到循环变量后执行代码块。");
+      if (/^while\b/.test(text)) return withCalls("条件循环：只要条件仍为真就重复执行；要确认循环中有机会让条件变假。");
+      if (/^with\b/.test(text)) return withCalls("上下文管理：进入代码块时准备资源，离开时自动完成清理，例如关闭文件。");
+      if (/^try\b/.test(text)) return withCalls("异常处理：标出可能失败的代码；后面的 except 应只处理预期错误。");
+      if (/^except\b/.test(text)) return withCalls("异常分支：仅在 try 中出现匹配错误时执行；不要用空 except 隐藏问题。");
+      return withCalls("流程控制语句：和相邻缩进块配合，决定程序在哪种情况下继续或收尾。");
     }
-    if (/^return\b/.test(text)) return "返回：结束当前函数，并把后面的值交给调用它的代码；这和 print 显示结果不同。";
+    if (/^return\b/.test(text)) return withCalls("返回：结束当前函数，并把后面的值交给调用它的代码；这和 print 显示结果不同。");
     if (/^yield\b/.test(text)) return "生成器产出：暂时交出一个值并暂停函数，下次取值时从这里继续。";
     if (/^raise\b/.test(text)) return "主动报告异常：当前操作无法继续时，把具体错误交给调用者或匹配的 except。";
     if (/^(break|continue|pass)\b/.test(text)) return "流程控制：break 结束循环，continue 开始下一轮，pass 则是暂时不做事的占位语句。";
-    const calls = [...text.matchAll(/(?:\b|\.)([A-Za-z_]\w*)\s*\(/g)].map(m => m[1]);
-    const uniqueCalls = [...new Set(calls)].filter(name => !["if", "for", "while", "with", "def", "class", "return", "lambda"].includes(name));
-    const details = uniqueCalls.map(name => {
-      if (classNames.has(name)) return "调用本例定义的 `" + name + "` 类来创建对象；括号里的值会传给它的初始化方法。";
-      if (definedNames.has(name)) return "本例自己定义的 `" + name + "()` 函数，向上查找它的 def 看具体步骤。";
-      return this.symbols[name] || "调用 `" + name + "()`；这是本例使用的函数或方法，请结合它的导入来源和本节正文确认用途。";
-    });
-    if (/^[A-Za-z_]\w*\s*(?:\+=|-=|\*=|\/=|=)/.test(text)) return "赋值：把右侧计算结果绑定到左侧名字；复合赋值会基于原值继续运算。" + (details.length ? " " + details.join(" ") : "");
-    if (uniqueCalls.length) return "执行表达式：从左到右计算参数，再调用函数或方法。" + details.join(" ");
+    if (/^[A-Za-z_]\w*\s*(?:\+=|-=|\*=|\/=|=)/.test(text)) return withCalls("赋值：把右侧计算结果绑定到左侧名字；复合赋值会基于原值继续运算。");
+    if (uniqueCalls.length) return withCalls("执行表达式：从左到右计算参数，再调用函数或方法。");
     return "计算或设置表达式：先看本行读取了哪些名字，再检查结果如何被下一行使用。";
   },
   explainSqlLine(line) {
