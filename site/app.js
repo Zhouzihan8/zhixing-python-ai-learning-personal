@@ -21,7 +21,8 @@ function markdown(text){
   const fence=line.match(/^(?:~~~|\x60{3})(.*)$/);
   if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang);html+='<div class="code-sample"><small class="code-context">'+(browserPython?"网页练习区 · 框架依赖请转到 VS Code":lang==="powershell"?"在本机 PowerShell 运行":lang==="sql"?"在对应数据库客户端运行":"示例片段") +'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+"</div>";inCode=false}continue;}
   if(inCode){code.push(line);continue;}
-  if(/^#{1,4}\s/.test(line)){flush();close();html+="<h3>"+inline(line.replace(/^#+\s*/,""))+"</h3>";continue;}
+  const heading=line.match(/^(#{2,4})\s+(.*)$/);
+  if(heading){flush();close();const tag=heading[1].length===4?"h3":"h2";html+="<"+tag+">"+inline(heading[2])+"</"+tag+">";continue;}
   if(/^\s*[-*]\s/.test(line)){flush();if(!list){html+="<ul>";list=true}html+="<li>"+inline(line.replace(/^\s*[-*]\s/,""))+"</li>";continue;}
   if(!line.trim()){flush();close();continue;}close();paragraph.push(line);
  }
