@@ -156,37 +156,41 @@ const demoHeadings={
  "S6-U05":"4. 执行器负责真正调用",
  "S6-U06":"4. 停止是系统行为的一部分"
 };
+function topicHeading(html,index){
+ if(index<1)return null;
+ return html.match(new RegExp('<(h[23]) id="lesson-topic-'+index+'"[^>]*>.*?</\\1>'));
+}
 function readingBody(lesson){
  const study=window.LessonStudy?.[lesson.id];
  let html=markdown(lesson.body,"lesson-topic");
+ const headings=lessonHeadings(lesson.body);
+ const endOfTopic=(markup,heading)=>{
+  const start=heading.index+heading[0].length;
+  const next=markup.slice(start).search(/<(?:h[23]|details) id="lesson-topic-\d+"/);
+  return next<0?markup.length:start+next;
+ };
  for(const [title,label] of study?.foldSections||[]){
-  const titleIndex=lessonHeadings(lesson.body).indexOf(title)+1;
-  if(titleIndex<1)continue;
-  const targetHeading="<h2 id=\"lesson-topic-"+titleIndex+"\">"+inline(title)+"</h2>";
-  const start=html.indexOf(targetHeading);
-  if(start<0)continue;
-  const sectionStart=start+targetHeading.length;
-  const following=html.indexOf("<h2",sectionStart);
-  const end=following<0?html.length:following;
-  html=html.slice(0,start)+'<details class="lesson-walkthrough"><summary>'+esc(label)+
+  const titleIndex=headings.indexOf(title)+1;
+  const target=topicHeading(html,titleIndex);
+  if(!target)continue;
+  const sectionStart=target.index+target[0].length;
+  const end=endOfTopic(html,target);
+  html=html.slice(0,target.index)+'<details id="lesson-topic-'+titleIndex+'" class="lesson-walkthrough"><summary>'+esc(label)+
    "</summary>"+html.slice(sectionStart,end)+"</details>"+html.slice(end);
  }
  const heading=study?.after||lesson.visualAfter||demoHeadings[lesson.id];
- const headingIndex=lessonHeadings(lesson.body).indexOf(heading)+1;
- const anchor=heading&&headingIndex>0?"<h2 id=\"lesson-topic-"+headingIndex+"\">"+inline(heading)+"</h2>":"";
- const at=html.indexOf(anchor);
- const next=at<0||!anchor?-1:html.indexOf("<h2",at+anchor.length);
+ const anchor=topicHeading(html,headings.indexOf(heading)+1);
+ const next=anchor?endOfTopic(html,anchor):html.length;
  const explanation=study?.explanation
   ? '<details class="lesson-walkthrough" id="lesson-walkthrough"><summary>详解 · '+esc(study.title)+'</summary><ol>'+
     study.explanation.map(step=>'<li>'+inline(step)+'</li>').join("")+
     '</ol><button type="button" data-lesson-jump="lab">回到练习区</button></details>'
   : "";
  const visual='<div id="lesson-visual" tabindex="-1">'+explanation+diagram(lesson)+'</div>';
- const content=next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
+ const content=html.slice(0,next)+visual+html.slice(next);
  const review=practiceChecks[lesson.id]?.reviewHeading;
- const reviewIndex=lessonHeadings(lesson.body).indexOf(review)+1;
- return review?content.replace('<h2 id="lesson-topic-'+reviewIndex+'">'+inline(review)+"</h2>",
-  '<h2 id="lesson-review" tabindex="-1">'+inline(review)+"</h2>"):content;
+ const reviewAnchor=topicHeading(content,headings.indexOf(review)+1);
+ return reviewAnchor?content.replace(reviewAnchor[0],'<div id="lesson-review" tabindex="-1">'+reviewAnchor[0]+'</div>'):content;
 }
 function lessonRoadmap(lesson){
  const headings=lessonHeadings(lesson.body).map((title,index)=>({title,id:index+1,nested:isSubtopic(title)}));
@@ -720,7 +724,7 @@ $("close-lab").onclick=closeLab;
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
-fetch("./content/course.json?v=course-audit").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
+fetch("./content/course.json?v=lesson-flow").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
 $("stdin").oninput=()=>{
  labDraftChanged();
