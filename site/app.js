@@ -102,11 +102,16 @@ function lessonExtras(lesson){
  }).join("")+'</section>';
 }
 function nav(query=""){
+ query=query.trim().toLowerCase();
  const filtered=course.filter(l=>{
   const study=window.LessonStudy?.[l.id];
   return [l.id,l.title,l.lead,l.body,study?.title,...(study?.explanation||[]),
-   ...(window.LessonExtras?.[l.id]||[]).flat()].join(" ").toLowerCase().includes(query.toLowerCase());
+   ...(window.LessonExtras?.[l.id]||[]).flat()].join(" ").toLowerCase().includes(query);
  });
+ if(query&&!filtered.length){
+  $("course-nav").innerHTML='<p role="status">没有找到匹配的课程。可以换个关键词试试。</p>';
+  return;
+ }
  $("course-nav").innerHTML=Object.keys(stages).map(s=>{
   let items=filtered.filter(l=>l.stage===s);
   if(!items.length)return "";
@@ -413,10 +418,15 @@ function setRunBusy(running){
  $("run").disabled=running;
  $("check-practice").disabled=running;
 }
+function clearPracticeResult(){
+ $("practice-results").textContent="";
+ $("practice-review").hidden=true;
+}
 async function checkPractice(){
  const lesson=current,spec=practiceChecks[lesson?.id];
  if(busy||!spec)return;
  const view=lessonView,code=$("code").value,stdin=$("stdin").value;
+ const sameDraft=()=>lessonView===view&&$("code").value===code&&$("stdin").value===stdin;
  const report=$("practice-results");
  setRunBusy(true);
  $("practice-review").hidden=true;
@@ -429,7 +439,7 @@ async function checkPractice(){
    if(example.text!==undefined)inputs["sample.txt"]=example.text;
    const submitted=example.suffix?code+"\n\n"+example.suffix:code;
    const result=await executeInPythonWorker({id:lesson.id,code:submitted,stdin:example.stdin??stdin,files:inputs});
-   if(lessonView!==view)return;
+   if(!sameDraft())return;
    const issue=result.exitCode===0?spec.check(result,example):
     (result.error||result.stderr||"程序运行失败").trim().split(/\r?\n/).at(-1);
    if(!issue)passed++;
@@ -439,7 +449,7 @@ async function checkPractice(){
   report.textContent=passed+" / "+spec.cases.length+" 组通过\n"+messages.join("\n");
   $("practice-review").hidden=passed===spec.cases.length;
  }catch(error){
-  if(lessonView===view)report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message;
+  if(sameDraft())report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message;
  }finally{setRunBusy(false);}
 }
 $("task").insertAdjacentHTML("afterend",
@@ -467,6 +477,7 @@ function replaceLabDraft(code, stdin=$("stdin").value){
  if($("undo-draft"))$("undo-draft").hidden=false;
  $("code").value=code;
  $("stdin").value=stdin;
+ clearPracticeResult();
  storage.set(current.id,code);
  storage.set(current.id+":stdin",stdin);
 }
@@ -480,8 +491,8 @@ function show(id){
  const practiceCheck=practiceChecks[current.id];
  $("practice-check").hidden=!practiceCheck;
  $("practice-check-note").textContent=practiceCheck?.note||"";
- $("practice-results").textContent="";
- $("practice-review").hidden=true;
+ clearPracticeResult();
+ $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
@@ -498,7 +509,24 @@ function show(id){
 nav($("search").value);wireDiagram();storage.set("last",id);
  if(practice)$("lesson-practice")?.scrollIntoView();else window.scrollTo(0,0);
 }
-$("course-nav").onclick=e=>{let b=e.target.closest("[data-id]"),s=e.target.closest("[data-stage]");if(b)location.hash=b.dataset.id;else if(s){let panel=s.nextElementSibling;panel.hidden=!panel.hidden;s.setAttribute("aria-expanded",String(!panel.hidden));}};
+$("course-nav").onclick=e=>{
+ const lesson=e.target.closest("[data-id]");
+ if(lesson){
+  const hash="#"+lesson.dataset.id;
+  if(location.hash!==hash){location.hash=hash;return;}
+  setCourseOpen(false);
+  const title=$("reading").querySelector("h1");
+  title.tabIndex=-1;
+  title.focus();
+  return;
+ }
+ const stage=e.target.closest("[data-stage]");
+ if(stage){
+  const panel=stage.nextElementSibling;
+  panel.hidden=!panel.hidden;
+  stage.setAttribute("aria-expanded",String(!panel.hidden));
+ }
+};
 $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");if(tracked){saveProgress(tracked.dataset.progressAction);return;}let jump=e.target.closest("[data-map-scroll]");
  if(jump){$("tree-"+jump.dataset.mapScroll).scrollIntoView({block:"start"});return;}
  let projectOpen=e.target.closest("[data-map-open]");
@@ -522,13 +550,16 @@ $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");
   return;
  }
  let open=e.target.closest("[data-open]");if(open){openWorkspace(open.dataset.open==="project");return;}let b=e.target.closest("[data-sample]");if(b){replaceLabDraft(samples[+b.dataset.sample]);$("run-status").textContent="已载入讲义片段。需要前文变量的例子请补齐上下文；PyTorch 等本机依赖请在本机学习站或 VS Code 中继续。";if(matchMedia("(max-width: 1180px)").matches)setLabOpen(true);$("code").focus();}};
-$("code").oninput=()=>storage.set(current.id,$("code").value);
+$("code").oninput=()=>{
+ clearPracticeResult();
+ if(current)storage.set(current.id,$("code").value);
+};
 $("code").onkeydown=e=>{
  if(e.key==="Tab"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
   e.preventDefault();
   const editor=e.target;
   editor.setRangeText("    ",editor.selectionStart,editor.selectionEnd,"end");
-  storage.set(current.id,editor.value);
+  $("code").oninput();
  }
  if(e.key==="Escape"&&!document.body.classList.contains("lab-open"))$("stdin").focus();
  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}
@@ -568,6 +599,7 @@ if($("undo-draft"))$("undo-draft").onclick=()=>{
  const {code,stdin}=JSON.parse(saved);
  $("code").value=code;
  $("stdin").value=stdin;
+ clearPracticeResult();
  storage.set(current.id,code);
  storage.set(current.id+":stdin",stdin);
  storage.set(key,"");
@@ -586,7 +618,10 @@ $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
 fetch("./content/course.json").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
-$("stdin").oninput=()=>storage.set(current.id+":stdin",$("stdin").value);
+$("stdin").oninput=()=>{
+ clearPracticeResult();
+ if(current)storage.set(current.id+":stdin",$("stdin").value);
+};
 async function openWorkspace(project=false,lesson=current){
  if(!lesson)return;
  if(!project)$("vscode-status").textContent="正在打开本机已有文件；如浏览器询问，请选择打开 Visual Studio Code。";
