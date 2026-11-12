@@ -284,6 +284,27 @@ print(left, right, right - left)  # 1 3 2
 分别验证不存在的文件、存在但为空的文件、正常文件。只有第一种应报告路径错误。保留原来的统计函数，把路径检查放在读取数据的地方。验收是能说出异常发生在哪一层，以及空文件为什么不属于同一种错误。`]
  ],
  "S1-U10": [
+  ["阶段项目 · 独立完成", "从空白写一个带坏行统计的文本工具", `在阶段项目的动手版新建脚本。写一个函数，接收文本行，返回有效正文的词频字典和坏行数。每行用第一个制表符分隔来源和正文。整行空白直接跳过；没有分隔符、来源为空或正文为空都计作坏行。只统计正文，统一小写，按空白拆词。
+
+用“笔记 + 制表符 + Python AI”、空行、“没有分隔符”、“课件 + 制表符 + python”、“制表符 + 只有正文”和“课件 + 制表符 + 两个空格”核对。应得到 {"python": 2, "ai": 1}，坏行数为 3。全空白输入应得到空字典和 0。再用同一个函数处理 UTF-8 文件，并加一条自己设计的坏行。优先从输入输出推导写法；需要提示时展开下一节。`],
+  ["进阶 · 卡住再看", "提示与参考写法", `先用 strip 判断整行是否空白，分隔时用原行，避免 strip 把开头或结尾的制表符去掉。partition 可以同时给出来源、分隔符和正文。字段验证通过后再统计词频，最后由入口负责打印。
+
+写完自己的版本再对照：
+
+~~~python
+def summarize_lines(lines):
+    counts, bad = {}, 0
+    for line in lines:
+        if not line.strip():
+            continue
+        source, sep, body = line.partition("\\t")
+        if not sep or not source.strip() or not body.strip():
+            bad += 1
+            continue
+        for word in body.lower().split():
+            counts[word] = counts.get(word, 0) + 1
+    return counts, bad
+~~~`],
   ["进阶 · 科研脚本基础", "给自己的函数写可重复运行的测试", `从刚写好的词频函数开始。先为一份输入写出预期，再用 assertEqual(实际值, 预期值) 核对。每个测试只关心一个行为，失败时就能区分是空输入、大小写转换，还是空白切分出了问题。
 
 这个网页示例直接导入本课随课文件 textstats.py，可以在右侧运行。试着故意改错一个预期，读失败报告，再修回来。
@@ -369,6 +390,14 @@ python inspect_input.py "输入示例.txt" --output results/summary.json
 在阶段项目中打印每折的用户交集或时间边界，再比较随机划分的结果。选择方法前先写下模型部署后要面对什么数据。`]
  ],
  "S3-U06": [
+  ["进阶 · 科研排错", "训练出问题时从哪一段查起", `- **数据读不进来**：核对 VS Code 解释器、当前目录和数据路径。先读一条记录，再取一个批次。
+- **形状或标签报错**：在 forward 和损失计算前各打印一次 shape、dtype、device。这里 logits 是 [N,2]，类别索引是 long 类型的 [N]。
+- **损失不下降**：固定一个小批次重复训练，比较首尾损失和一次更新前后的参数。这样能把问题缩小到前向、损失、反向或参数更新。
+- **结果重跑不一致**：先比数据划分、随机种子、学习率和前两轮日志，再核对运行设备与框架版本。
+
+如果 VS Code 报找不到 torch，先运行 python -c "import sys; print(sys.executable)"，再确认该解释器能 import torch。本机验证使用 Python 3.13 的独立环境。
+
+从本课 train.py 开始，检查 results/history.json 中的训练、验证与最终测试记录，以及 results/best.pt 是否生成。小批次能拟合后，再用独立数据评估。`],
   ["工具实操 · VS Code / PyTorch", "用一个批次定位张量错误", `在 forward 前和计算损失前分别打印 inputs、logits、labels 的 shape、dtype、device。对使用类别索引的多分类交叉熵，常见形状是 logits [N,C]、labels [N]，标签类型为 long。确认输入与模型、预测与标签在相应的同一设备。
 
 先在 CPU 上只跑一个批次。人为把标签变成 [N,1]，定位报错，再改回原形状。遇到错误时按“读报错 → 写期望形状 → 查上一步输出”的顺序排查。
@@ -381,7 +410,7 @@ python inspect_input.py "输入示例.txt" --output results/summary.json
 画出生成第 3、4 个 token 时参与注意力的 K、V 行。缓存减少重复投影与旧位置计算，但新 Q 仍要和已有 K 计算分数，而且缓存随序列长度增长。这里讨论推理，训练通常以整段序列并行计算。`]
  ],
  "S5-U02": [
-  ["工具实操 · Hugging Face / VS Code", "从模型卡到第一条推理", `先读模型卡，记录任务类型、模型 ID、许可、示例输入格式。用本课的 inspect_model.py 检查 tokenizer、特殊 token、输入长度和聊天模板。如果模型提供聊天模板，再按模型的调用示例格式化消息。
+  ["工具实操 · Hugging Face / VS Code", "从模型卡到第一条推理", `先读模型卡，记录任务类型、模型 ID、许可、示例输入格式。本机已用 Python 3.13 在 CPU 生成过一条回答。首次运行需要取得模型文件；如果没有打印模板就失败，先区分依赖导入失败与模型文件下载失败。缓存的符号链接提示不影响本次生成。用本课的 inspect_model.py 检查 tokenizer、特殊 token、输入长度和聊天模板。如果模型提供聊天模板，再按模型的调用示例格式化消息。
 
 先在本机跑一条短输入，限制 max_new_tokens，记录生成参数和输出。若下载卡住，先区分网络、访问权限和缓存位置；如果模型已加载才报显存错误，先缩短输入并使用适合设备的小模型。保留成功命令和模型 ID，下一课直接复用。`]
  ],
@@ -419,6 +448,7 @@ python inspect_input.py "输入示例.txt" --output results/summary.json
   ["选修 · 后端组", "把已有实验记录做成可查询的 API", `先学 SQLite 和本课 FastAPI。打开实验记录服务，用 /docs 或 curl 查看请求、状态码与返回体。先 POST 三条记录，再逐次加阶段筛选、标题搜索、分数排序和分页。先筛选，再排序，再取一页；total 是同一筛选条件下的全部条数。用 page=0 检查参数错误，用不存在的标题检查空结果。([FastAPI 查询参数](https://fastapi.tiangolo.com/tutorial/query-params/))`]
  ],
  "S6-E03": [
+  ["本机验证 · MySQL", "连接失败先查服务，再查账号和练习库", `先在 VS Code 选能导入 mysql.connector 的解释器，再核对 MYSQL_HOST、MYSQL_PORT、MYSQL_USER 和 MYSQL_DATABASE。脚本默认端口 3306，其他端口可用 MYSQL_PORT 指定。只在自己的练习库运行：脚本会新增并提交一条记录。用另一次连接查到该记录，才能确认写入已持久保存。`],
   ["选修 · 后端组", "从本机 SQLite 到 Compose 中的 MySQL", `先在 S6-E02 的实验记录服务跑通请求。再按项目 README 启动 API 和 MySQL。应用在容器里用服务名 db 连接数据库，数据库用卷保存数据，健康检查确认数据库能处理查询后才启动 API。用同一组 API 请求复查筛选与分页。([Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order/))
 
 迁移成冬令营论坛时，再加用户、分区、帖子及外键。用户登录需要密码哈希与身份验证，创建帖子还要检查权限。把 Nginx、缓存和公网访问留到交付时按需求扩展。`],
