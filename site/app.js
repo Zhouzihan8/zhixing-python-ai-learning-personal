@@ -486,8 +486,13 @@ function show(id){
  const practice=id.endsWith("/practice");
  if(practice)id=id.slice(0,-"/practice".length);
  if(id==="map"||!id){showMap();return;}
+ const found=course.find(l=>l.id===id);
+ if(!found){
+  if(course.length){history.replaceState(history.state,"","#map");showMap();}
+  return;
+ }
  document.body.classList.remove("is-map");setLabOpen(false);setCourseOpen(false);$("open-local-study").disabled=false;$("toggle-lab").hidden=false;
- const found=course.find(l=>l.id===id);if(!found){if(course.length)show(course[0].id);return;}current=found;samples=[];document.body.dataset.stage=current.stage;
+ current=found;samples=[];document.body.dataset.stage=current.stage;
  const practiceCheck=practiceChecks[current.id];
  $("practice-check").hidden=!practiceCheck;
  $("practice-check-note").textContent=practiceCheck?.note||"";

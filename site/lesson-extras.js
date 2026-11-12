@@ -222,7 +222,13 @@ window.LessonExtras = {
  "S1-U02": [
   ["进阶 · 比赛常用 Python", "按题意读入多组数据，按格式输出", `先分清题目按行组织数据，还是把空白都当分隔符。数据量小用 input() 足够。按行读大输入可用 sys.stdin.readline()，它保留换行符，遇到文件结束返回空字符串。连续空格和换行都可作为分隔符时，split() 无参数会跳过连续空白。
 
-在右侧「标准输入」填三行，依次是 2、3 5、10 -4。第一行表示接下来有两组数据，预期逐行输出 8 和 6。提交时保留题目要求的结果行，去掉交互提示和调试信息。
+把下面三行粘贴到右侧「标准输入」。第一行表示后面有两组数据，每组独占一行。点「运行 Python」后，核对输出是否恰好是两行 8 和 6。「检查我的改动」对应本课的分钟数练习。
+
+~~~text
+2
+3 5
+10 -4
+~~~
 
 ~~~python
 import sys
@@ -237,7 +243,7 @@ if header:
     sys.stdout.write("\\n".join(answers) + ("\\n" if answers else ""))
 ~~~
 
-先把组数改成 0，再试两组中出现负数。若题目只按空白区分记号，可用 sys.stdin.read().split() 一次读入再解析，代价是将输入留在内存。按行读时，输出量很大也可以逐行输出或分批写。只有输入确实成为瓶颈时，再试 sys.stdin.buffer，它读的是 bytes，读文字时留意编码。([Python 标准输入输出](https://docs.python.org/3/library/sys.html#sys.stdin))`]
+把输入整块替换成一行 0，预期无输出。再恢复示例输入，并把最后一行改成 -10 4，预期第二行变成 -6。提交时按题目格式保留结果行。若题目只按空白区分记号，可用 sys.stdin.read().split() 一次读入再解析，代价是将输入留在内存。按行读时，输出量很大也可以逐行输出或分批写。只有输入确实成为瓶颈时，再试 sys.stdin.buffer，它读的是 bytes，读文字时留意编码。([Python 标准输入输出](https://docs.python.org/3/library/sys.html#sys.stdin))`]
  ],
  "S1-U06": [
   ["进阶 · 比赛常用 Python", "计数、队列、优先队列和有序边界怎么选", `计数用 Counter。需要指定同频项的顺序时，仍用本课的排序键明确规则。先进先出用 deque，append 加到右端，popleft 从左端取，避免列表 pop(0) 挪动后面的所有元素。
@@ -306,7 +312,7 @@ if __name__ == "__main__":
 在 VS Code 里把代码另存为 test_textstats.py，放在 textstats.py 同一目录，终端运行 python -m unittest -v test_textstats。将导入换成你自己的统计函数，再加一个项目里真实遇到的边界输入。以后修改清洗规则或评测代码，沿用同样方法检查旧行为。([Python unittest](https://docs.python.org/3/library/unittest.html))`]
  ],
  "S2-U03": [
-  ["进阶 · 科研脚本基础", "让别人用同一条命令复跑你的脚本", `把会变化的输入文件、输出位置和实验参数写成命令行参数。先把下面的示例保存成 inspect_input.py，在本机终端运行。Path 让参数解析后直接得到路径对象，--help 可以查看用法。
+  ["进阶 · 科研脚本基础", "让别人用同一条命令复跑你的脚本", `把会变化的输入文件、输出位置和实验参数写成命令行参数。将示例保存为 inspect_input.py，放在本课的「输入示例.txt」旁边，并在该目录打开终端。Path 让解析后的参数直接成为路径对象，--help 可以查看用法。
 
 ~~~text
 import argparse
@@ -320,10 +326,17 @@ def main():
     args = parser.parse_args()
     if args.input.resolve() == args.output.resolve():
         parser.error("输出路径不能覆盖输入文件")
-    words = args.input.read_text(encoding="utf-8").split()
+    try:
+        words = args.input.read_text(encoding="utf-8").split()
+    except FileNotFoundError:
+        parser.error(f"找不到输入文件：{args.input}。请检查当前目录和路径")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     result = {"input": str(args.input), "word_count": len(words)}
-    args.output.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    try:
+        with args.output.open("x", encoding="utf-8") as output:
+            json.dump(result, output, ensure_ascii=False)
+    except FileExistsError:
+        parser.error(f"输出已存在：{args.output}。请换一个输出文件名")
 
 if __name__ == "__main__":
     main()
@@ -331,10 +344,10 @@ if __name__ == "__main__":
 
 ~~~powershell
 python inspect_input.py --help
-python inspect_input.py sample.txt --output results/summary.json
+python inspect_input.py "输入示例.txt" --output results/summary.json
 ~~~
 
-复跑时换一个输入和输出文件名，检查原输入仍在、两份结果可以对照。把实际命令和依赖版本写进 README。进入模型实验后，继续记录数据版本、随机种子、划分和评测设置。固定种子有助于比较，但结果还依赖环境和计算实现。([Python argparse](https://docs.python.org/3/library/argparse.html))`],
+首次运行后打开 results/summary.json。再执行同一条命令，观察打开模式 x 如何保护上一次的输出。然后换一个输出文件名，保留两份结果作对照。把实际命令和依赖版本写进 README。进入模型实验后，继续记录数据版本、随机种子、划分和评测设置。固定种子有助于比较，但结果还依赖环境和计算实现。([Python argparse](https://docs.python.org/3/library/argparse.html))`],
   ["进阶 · 冬令营衔接", "在图上看懂 Git 分支与远程同步", `先用 S2 小项目做一个修改，查看 git status 和 git diff。接着在模拟仓库完成「主要 → 基础」和「远程 → Push & Pull」，每次先预测提交图会怎么变。能说清本地提交为什么还没有出现在远程，就可以回项目继续做。([Learn Git Branching](https://learngitbranching.js.org/?locale=zh_CN))`],
   ["工具实操 · Windows / VS Code", "终端能导入，VS Code 却报错", `在项目目录用 PowerShell 执行 \`py -3 -m venv .venv\`，用 \`.\\.venv\\Scripts\\python.exe -m pip install numpy\` 安装。写一个短脚本打印 \`sys.executable\`，再导入 NumPy 并打印 \`numpy.__version__\`。先用虚拟环境的 Python 直接运行，再用 VS Code 的“运行 Python 文件”运行。
 

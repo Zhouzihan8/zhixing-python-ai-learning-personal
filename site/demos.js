@@ -27,7 +27,7 @@ window.StudyDemos = (() => {
 
   if(l.id==="S1-U05")return wrap("一轮一轮看字典累加",'<button id="word-step">处理下一个词</button> <button id="word-reset">重新开始</button>',"固定文本 Python AI Python：每处理一项，观察旧次数如何变成新次数。图解与本课 Python 使用相同计数逻辑。");
   if(["S2-U04","S2-U05"].includes(l.id))return wrap("广播不是把维度随意凑在一起",'<label>B 的形状 <select id="broadcast-shape"><option value="1,3">[1, 3]</option><option value="2,1">[2, 1]</option><option value="2,2">[2, 2]（不兼容）</option></select></label>',"A 固定为 [[1,2,3],[4,5,6]]，形状 [2,3]；从尾部对齐，维度必须相等或其中一个为 1。这里显示逐元素相加，不是矩阵乘法。");
-  if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step=".05" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
+  if(["S3-U03","S3-U04"].includes(l.id))return wrap("看一次参数更新怎样改变损失",'<label>w <input id="gradient-w" type="range" min="-1" max="4" step="any" value=".5"></label> <button id="gradient-step">做一步梯度下降</button>',"单样本 x=2，目标 y=4，预测 ŷ=w×x，损失 L=(ŷ−y)²，学习率 0.1。先算梯度，再更新参数；这不是完整网络训练。");
   if(["S4-U03","S4-U06"].includes(l.id))return wrap("从分数、掩码到加权结果",'<label>查询位置 <select id="query-position"><option value="0">位置 0</option><option value="1" selected>位置 1</option><option value="2">位置 2</option></select></label> <label><input id="causal-enabled" type="checkbox" checked>因果掩码</label> <label><input id="change-last-value" type="checkbox">改位置 2 的 V 为 [8,1]</label>',"单头示例：Q=K=[[1,0],[0,1],[1,1]]，V=[[1,0],[0,2],[2,1]]。分数除以 √2，再屏蔽未来位置、softmax，最后按权重加权 V；省略学习投影和多头拼接。");
   if(l.id==="S5-U03")return wrap("温度改变概率分布",'<label>温度 <input id="temperature" type="range" min=".2" max="2" step=".1" value="1"></label>',"教学 logits=[3,2,1]，按 softmax(logits/T) 计算三个候选的概率。它只说明采样分布，不执行真实语言模型，也不承诺输出质量随温度单调变化。");
   if(l.id==="S6-U02")return wrap("检索到的资料决定回答依据",'<label>检索问题 <input id="retrieval-query" value="python 函数 参数"></label> <label>每段词数 <select id="chunk-size"><option>3</option><option selected>6</option></select></label>',"这个本地示意采用词项重合评分，分词按空白，非 embedding 检索。先看评分与原文，再去本课 VS Code 实践运行真实向量检索。");
@@ -264,10 +264,10 @@ window.StudyDemos = (() => {
   }
   if(el("fit-w")){
    const update=()=>{let w=+el("fit-w").value,b=+el("fit-b").value,points=[[1,2],[2,3],[3,5],[4,6]],mse=points.reduce((s,[x,y])=>s+(w*x+b-y)**2,0)/points.length;
-    const sx=x=>50+x*110,sy=y=>260-y*16;
-    let svg='<svg viewBox="0 0 580 300" role="img" aria-label="观测点与预测直线"><path d="M50 15V260H560" stroke="#68746e" fill="none"/><text x="550" y="285">x</text><text x="15" y="25">y</text>';
+    const sx=x=>50+x*110,sy=y=>230-y*13;
+    let svg='<svg viewBox="0 0 580 300" role="img" aria-label="观测点与预测直线"><path d="M50 18V256M50 230H560" stroke="#68746e" fill="none"/><text x="550" y="285">x</text><text x="15" y="25">y</text>';
     for(let i=0;i<=4;i++)svg+='<text x="'+sx(i)+'" y="282" text-anchor="middle" font-size="12">'+i+'</text>';
-    for(let y=0;y<=14;y+=2)svg+='<text x="35" y="'+(sy(y)+4)+'" text-anchor="end" font-size="12">'+y+'</text>';
+    for(let y=-2;y<=16;y+=2)svg+='<text x="35" y="'+(sy(y)+4)+'" text-anchor="end" font-size="12">'+y+'</text>';
     svg+='<path d="M'+sx(0)+' '+sy(b)+' L'+sx(4.5)+' '+sy(4.5*w+b)+'" stroke="#236b59" stroke-width="2"/>';
     svg+=points.map(([x,y])=>'<path d="M'+sx(x)+' '+sy(y)+'V'+sy(w*x+b)+'" stroke="#b86c42" stroke-dasharray="4 3"/><circle cx="'+sx(x)+'" cy="'+sy(y)+'" r="5" fill="#294e3b"/>').join("");
     out.innerHTML='<p>ŷ = '+num(w)+'x + '+num(b)+'；MSE = '+num(mse)+'</p>'+svg+'</svg><pre>'+points.map(([x,y])=>'x='+x+'，真实='+y+'，预测='+num(w*x+b)+'，平方误差='+num((w*x+b-y)**2)).join("\n")+'</pre>'};
