@@ -117,7 +117,7 @@ const demoHeadings={
  "S1-U08":"浅拷贝只复制外层",
  "S2-U03":"当前目录与脚本所在目录",
  "S2-U02":"迭代器与生成器",
- "S2-U05":"乘法的两种意义",
+ "S2-U05":"广播从末尾对齐",
  "S3-M01":"跟着一份小表走完处理过程",
  "S3-U05":"交叉熵惩罚什么",
  "S3-U06":"小例子 1：标准库解释样本加权",
@@ -328,6 +328,27 @@ const practiceChecks={
   ],
   check(){return "";}
  },
+ "S2-U05":{
+  reviewHeading:"广播从末尾对齐",
+  note:"广播加练：在代码框定义 add_bias(rows, bias)。每行是一条样本，bias 的每项对应一列特征。给每行加同一个偏置向量，返回二维列表。可以用列表循环，也可以用 NumPy 并以 .tolist() 返回。无需读取输入，检查会调用函数三次。",
+  cases:[
+   {label:"3 行、2 列",rows:[[1,2],[3,4],[5,6]],bias:[10,20],expected:[[11,22],[13,24],[15,26]]},
+   {label:"2 行、3 列",rows:[[1,2,3],[4,5,6]],bias:[10,20,30],expected:[[11,22,33],[14,25,36]]},
+   {label:"行数与列数相同",rows:[[1,2],[3,4]],bias:[10,-5],expected:[[11,-3],[13,-1]]}
+  ].map(({label,rows,bias,expected})=>({
+   label,
+   suffix:[
+    "assert callable(globals().get('add_bias')), '请先定义 add_bias(rows, bias)'",
+    "checked_rows = add_bias("+JSON.stringify(rows)+", "+JSON.stringify(bias)+")",
+    "assert isinstance(checked_rows, list), '请返回二维列表。NumPy 数组可用 .tolist() 转成列表'",
+    "assert len(checked_rows) == "+rows.length+", '输出行数应和输入相同。检查是否把样本与 bias 按行配对，或被 zip 截断'",
+    "for checked_index, (checked_row, expected_row) in enumerate(zip(checked_rows, "+JSON.stringify(expected)+")):",
+    "    assert isinstance(checked_row, list) and len(checked_row) == len(expected_row), '检查特征轴：每行输出的列数应与原矩阵相同'",
+    "    assert checked_row == expected_row, f'第 {checked_index + 1} 行结果为 {checked_row}，应为 {expected_row}。检查是否按行加了同一个数；每列应加对应的 bias 项'"
+   ].join("\n")
+  })),
+  check(){return "";}
+ },
  "S3-U06":{
   review:"lesson-visual",
   note:"加入第三批 (2, 4) 后，把总体准确率作为第一行小数输出。",
@@ -336,6 +357,27 @@ const practiceChecks={
    const first=result.stdout.trim().split(/\r?\n/)[0];
    return first&&Math.abs(Number(first)-5/9)<0.001
     ?"":"总体准确率应接近 0.556。先加总正确数和样本数，再相除。";
+  }
+ },
+ "S4-U03":{
+  reviewHeading:"两种掩码解决不同问题",
+  note:"沿用两键示例。先打印两个键的权重列表，再打印输出向量。保持示例中 V 为 [[10, 0], [0, 20]]。",
+  cases:[{label:"屏蔽第二个键，保留第一个键"}],
+  check(result){
+   const lines=result.stdout.trim().split(/\r?\n/);
+   const vector=line=>{
+    try{
+     const values=JSON.parse(line);
+     return Array.isArray(values)&&values.length===2&&values.every(Number.isFinite)?values:null;
+    }catch{return null;}
+   };
+   const weights=vector(lines[0]),output=vector(lines[1]);
+   const near=(value,expected)=>Math.abs(value-expected)<=0.0001;
+   if(lines.length!==2||!weights||!output)return "请打印两行长度为 2 的数值列表：第一行权重，第二行输出向量。";
+   if(!near(weights[1],0))return "第二个键的权重应为 0。先屏蔽它对应的分数，再计算 softmax。";
+   if(!near(weights[0],1))return "剩余权重必须重新归一化。这里只有第一个键可读，它的权重应为 1。";
+   return near(output[0],10)&&near(output[1],0)
+    ?"":"权重正确。检查 w 和 V 的位置是否一一配对；输出应等于第一个值向量 [10, 0]。";
   }
  },
  "S5-U05":{
