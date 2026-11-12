@@ -20,7 +20,37 @@ function markdown(text,idPrefix="md"){
  const close=()=>{if(listType){html+="</"+listType+">";listType=""}};
  for(const line of text.split("\n")){
   const fence=line.match(/^(?:~~~|\x60{3})(.*)$/);
-  if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang),sql=lang.toLowerCase()==="sql";let purpose=(previousParagraph||currentHeading).replace(/\s+/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").trim();purpose=purpose.split(/[。！？]/)[0];if(purpose.length>76)purpose=purpose.slice(0,75)+"…";const codeTitle=browserPython?"示例 "+(++pythonExample)+(purpose?" · "+purpose:" · 看上方概念如何写成代码"):lang==="powershell"?"本机命令 · 在 PowerShell 运行":sql?"SQL 示例 · "+(purpose||"在数据库客户端运行"):"代码片段";let walkthrough="";if((browserPython||sql)&&window.CodeNotes){const defined=new Set([...raw.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)\s*(?:\(|:)/gm)].map(m=>m[1]));const classes=new Set([...raw.matchAll(/^\s*class\s+([A-Za-z_]\w*)/gm)].map(m=>m[1]));const lines=raw.split("\n").filter(row=>row.trim());walkthrough='<details class="code-walkthrough"><summary>需要逐行看时，展开代码说明</summary><ol>'+lines.map(row=>'<li><code>'+esc(row.trim())+'</code><p>'+inline(sql?window.CodeNotes.explainSqlLine(row):window.CodeNotes.explainLine(row,defined,classes))+'</p></li>').join("")+"</ol></details>";}html+='<div class="code-sample"><small class="code-context">'+esc(codeTitle)+(browserPython?" · 可在网页练习区运行":"")+'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+walkthrough+"</div>";previousParagraph="";inCode=false}continue;}
+  if(fence){
+   flush();close();
+   if(!inCode){
+    inCode=true;lang=fence[1].trim();code=[];
+   }else{
+    const raw=code.join("\n");
+    const python=/^(python|py)(?:$|\s)/i.test(lang);
+    const sql=lang.toLowerCase()==="sql";
+    const localExample=python&&/^\s*(?:from|import)\s+(?:torch|transformers|numpy|pandas|matplotlib|fastapi|pydantic)\b/m.test(raw);
+    let purpose=(previousParagraph||currentHeading).replace(/\s+/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").trim().split(/[。！？]/)[0];
+    if(purpose.length>76)purpose=purpose.slice(0,75)+"…";
+    const title=python?"示例 "+(++pythonExample)+(purpose?" · "+purpose:"")
+      :lang==="powershell"?"本机命令 · 在 PowerShell 运行"
+      :sql?"SQL 示例 · "+(purpose||"在数据库客户端运行"):"代码片段";
+    const runtime=localExample?" · 按正文在本机环境运行":python?" · 网页练习区":"";
+    const runButton=python&&!localExample?'<button data-sample="'+(samples.push(raw)-1)+'">在练习区修改并运行 ↗</button>':"";
+    let walkthrough="";
+    if((python||sql)&&window.CodeNotes){
+     const defined=new Set([...raw.matchAll(/^\s*def\s+([A-Za-z_]\w*)\s*\(/gm)].map(m=>m[1]));
+     const classes=new Set([...raw.matchAll(/^\s*class\s+([A-Za-z_]\w*)/gm)].map(m=>m[1]));
+     const steps=code.filter(row=>row.trim()).map(row=>{
+      const note=sql?window.CodeNotes.explainSqlLine(row):window.CodeNotes.explainLine(row,defined,classes);
+      return '<li><code>'+esc(row.trim())+'</code><p>'+inline(note)+'</p></li>';
+     });
+     walkthrough='<details class="code-walkthrough"><summary>需要逐行看时，展开代码说明</summary><ol>'+steps.join("")+"</ol></details>";
+    }
+    html+='<div class="code-sample"><small class="code-context">'+esc(title+runtime)+'</small><pre>'+esc(raw)+'</pre>'+runButton+walkthrough+"</div>";
+    previousParagraph="";inCode=false;
+   }
+   continue;
+  }
   if(inCode){code.push(line);continue;}
   const heading=line.match(/^(#{2,4})\s+(.*)$/);
   if(heading){flush();close();currentHeading=heading[2];previousParagraph="";const nested=heading[1].length===4||isSubtopic(heading[2]),tag=nested?"h3":"h2",id=idPrefix==="lesson-topic"&&heading[1].length===3?' id="lesson-topic-'+(++headingIndex)+'"':"",numbered=/^\d+[.)]\s/.test(heading[2])?' data-numbered="true"':"";html+="<"+tag+id+numbered+">"+inline(heading[2])+"</"+tag+">";continue;}
@@ -724,7 +754,7 @@ $("close-lab").onclick=closeLab;
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
-fetch("./content/course.json?v=lesson-flow").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
+fetch("./content/course.json?v=chapter-audit").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
 $("stdin").oninput=()=>{
  labDraftChanged();
