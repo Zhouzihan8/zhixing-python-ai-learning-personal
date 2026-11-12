@@ -98,7 +98,8 @@ body[data-stage] .prose h3{color:var(--stage-ink)}
   border-left: 3px solid var(--accent);
   background: var(--code);
 }
-.lesson-walkthrough h3 { margin: 0 0 .5rem; }
+.lesson-walkthrough > summary { font-weight: 600; font-size: 15px; }
+.lesson-walkthrough button { margin: .5rem 0; }
 .lesson-walkthrough ol, .practice-steps { margin: .5rem 0; padding-left: 1.5em; }
 .lesson-walkthrough li + li, .practice-steps li + li { margin-top: .5rem; }
 .demo-table-scroll { overflow-x: auto; }

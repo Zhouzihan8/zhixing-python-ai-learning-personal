@@ -102,7 +102,11 @@ function lessonExtras(lesson){
  }).join("")+'</section>';
 }
 function nav(query=""){
- const filtered=course.filter(l=>(l.id+" "+l.title+" "+l.lead+" "+l.body+" "+(window.LessonExtras?.[l.id]||[]).flat().join(" ")).toLowerCase().includes(query.toLowerCase()));
+ const filtered=course.filter(l=>{
+  const study=window.LessonStudy?.[l.id];
+  return [l.id,l.title,l.lead,l.body,study?.title,...(study?.explanation||[]),
+   ...(window.LessonExtras?.[l.id]||[]).flat()].join(" ").toLowerCase().includes(query.toLowerCase());
+ });
  $("course-nav").innerHTML=Object.keys(stages).map(s=>{
   let items=filtered.filter(l=>l.stage===s);
   if(!items.length)return "";
@@ -133,19 +137,30 @@ const demoHeadings={
  "S6-U06":"4. 停止是系统行为的一部分"
 };
 function readingBody(lesson){
- const html=markdown(lesson.body);
+ let html=markdown(lesson.body);
  const study=window.LessonStudy?.[lesson.id];
  if(study?.shortBody){
   return markdown(study.shortBody)+'<div id="lesson-visual" tabindex="-1">'+diagram(lesson)+
    '</div><details class="lesson-reference"><summary>展开完整讲义</summary>'+html+'</details>';
  }
- const heading=lesson.visualAfter||demoHeadings[lesson.id];
+ for(const [title,label] of study?.foldSections||[]){
+  const sectionHeading="<h3>"+inline(title)+"</h3>";
+  const start=html.indexOf(sectionHeading);
+  if(start<0)continue;
+  const sectionStart=start+sectionHeading.length;
+  const following=html.indexOf("<h3>",sectionStart);
+  const end=following<0?html.length:following;
+  html=html.slice(0,start)+'<details class="lesson-walkthrough"><summary>'+esc(label)+
+   "</summary>"+html.slice(sectionStart,end)+"</details>"+html.slice(end);
+ }
+ const heading=study?.after||lesson.visualAfter||demoHeadings[lesson.id];
  const anchor=heading?"<h3>"+inline(heading)+"</h3>":"<h3>";
  const at=html.indexOf(anchor);
  const next=at<0?-1:html.indexOf("<h3>",at+anchor.length);
  const explanation=study?.explanation
-  ? '<section class="lesson-walkthrough"><h3>'+esc(study.title)+'</h3><ol>'+
-    study.explanation.map(step=>'<li>'+inline(step)+'</li>').join("")+'</ol></section>'
+  ? '<details class="lesson-walkthrough" id="lesson-walkthrough"><summary>详解 · '+esc(study.title)+'</summary><ol>'+
+    study.explanation.map(step=>'<li>'+inline(step)+'</li>').join("")+
+    '</ol><button type="button" data-lesson-jump="lab">回到练习区</button></details>'
   : "";
  const visual='<div id="lesson-visual" tabindex="-1">'+explanation+diagram(lesson)+'</div>';
  const content=next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
@@ -434,7 +449,12 @@ $("task").insertAdjacentHTML("afterend",
  '<button type="button" id="practice-review" hidden>回看相关讲解</button></div>');
 $("check-practice").onclick=checkPractice;
 $("practice-review").onclick=()=>{
- const section=$(practiceChecks[current?.id]?.review||"lesson-review")||$("lesson-notes");
+ const spec=practiceChecks[current?.id],study=window.LessonStudy?.[current?.id];
+ const lessonHeading=study?.after||current?.visualAfter||demoHeadings[current?.id];
+ const walkthrough=spec?.review==="lesson-visual"||spec?.reviewHeading===lessonHeading
+  ? $("lesson-walkthrough"):null;
+ if(walkthrough)walkthrough.open=true;
+ const section=walkthrough?.querySelector("summary")||$(spec?.review||"lesson-review")||$("lesson-notes");
  if(!section)return;
  setLabOpen(false);
  section.scrollIntoView({block:"start"});
