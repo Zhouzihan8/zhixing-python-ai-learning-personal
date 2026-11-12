@@ -219,6 +219,54 @@ Python 用缩进划分代码块。遍历字符串时写 for ch in text，只有�
 };
 
 window.LessonExtras = {
+ "S1-U02": [
+  ["进阶 · 比赛常用 Python", "按题意读入多组数据，按格式输出", `先分清题目按行组织数据，还是把空白都当分隔符。数据量小用 input() 足够。按行读大输入可用 sys.stdin.readline()，它保留换行符，遇到文件结束返回空字符串。连续空格和换行都可作为分隔符时，split() 无参数会跳过连续空白。
+
+在右侧「标准输入」填三行，依次是 2、3 5、10 -4。第一行表示接下来有两组数据，预期逐行输出 8 和 6。提交时保留题目要求的结果行，去掉交互提示和调试信息。
+
+~~~python
+import sys
+
+read = sys.stdin.readline
+header = read()
+if header:
+    answers = []
+    for _ in range(int(header)):
+        a, b = map(int, read().split())
+        answers.append(str(a + b))
+    sys.stdout.write("\\n".join(answers) + ("\\n" if answers else ""))
+~~~
+
+先把组数改成 0，再试两组中出现负数。若题目只按空白区分记号，可用 sys.stdin.read().split() 一次读入再解析，代价是将输入留在内存。按行读时，输出量很大也可以逐行输出或分批写。只有输入确实成为瓶颈时，再试 sys.stdin.buffer，它读的是 bytes，读文字时留意编码。([Python 标准输入输出](https://docs.python.org/3/library/sys.html#sys.stdin))`]
+ ],
+ "S1-U06": [
+  ["进阶 · 比赛常用 Python", "计数、队列、优先队列和有序边界怎么选", `计数用 Counter。需要指定同频项的顺序时，仍用本课的排序键明确规则。先进先出用 deque，append 加到右端，popleft 从左端取，避免列表 pop(0) 挪动后面的所有元素。
+
+每次只需要取最小值时用 heapq。heap[0] 是最小值，其余位置的顺序不代表完整排序。有序数组中查找相等值的区间，用 bisect_left 找左边界、bisect_right 找右边界。两者之差是出现次数。二分定位要求列表已排序，找到插入点后插入列表仍可能移动后面的元素。
+
+~~~python
+from bisect import bisect_left, bisect_right
+from collections import Counter, deque
+from heapq import heapify, heappop
+
+scores = [4, 2, 4, 9]
+print(Counter(scores)[4])  # 2
+
+queue = deque(["先到", "后到"])
+print(queue.popleft())  # 先到
+
+heap = scores.copy()
+heapify(heap)
+print(heappop(heap))  # 2
+
+ordered = sorted(scores)
+left = bisect_left(ordered, 4)
+right = bisect_right(ordered, 4)
+print(left, right, right - left)  # 1 3 2
+~~~
+
+把目标值改成 5，先预测两个边界。两者相等就表示没有匹配项，即使返回的位置落在列表内部。之后遇到按优先级处理的数据，再用二元组 (优先级, 序号) 练同优先级的顺序。([collections](https://docs.python.org/3/library/collections.html) · [heapq](https://docs.python.org/3/library/heapq.html) · [bisect](https://docs.python.org/3/library/bisect.html))`]
+ ],
  "S1-U07": [
   ["主线 · 必会", "从 C 的参数习惯过渡到 Python", `调用 \`append_score(scores)\` 时，形参和实参起初指向同一个列表。函数里执行 \`scores.append(90)\` 会改变调用方看到的列表；执行 \`scores = [90]\` 只会让形参重新绑定。把返回结果接回变量是另一个独立动作。
 
@@ -229,7 +277,64 @@ window.LessonExtras = {
 
 分别验证不存在的文件、存在但为空的文件、正常文件。只有第一种应报告路径错误。保留原来的统计函数，把路径检查放在读取数据的地方。验收是能说出异常发生在哪一层，以及空文件为什么不属于同一种错误。`]
  ],
+ "S1-U10": [
+  ["进阶 · 科研脚本基础", "给自己的函数写可重复运行的测试", `从刚写好的词频函数开始。先为一份输入写出预期，再用 assertEqual(实际值, 预期值) 核对。每个测试只关心一个行为，失败时就能区分是空输入、大小写转换，还是空白切分出了问题。
+
+这个网页示例直接导入本课随课文件 textstats.py，可以在右侧运行。试着故意改错一个预期，读失败报告，再修回来。
+
+~~~python
+import unittest
+from textstats import count_words
+
+class TextStatsTests(unittest.TestCase):
+    def test_empty_text(self):
+        self.assertEqual(count_words(""), {})
+
+    def test_mixed_case(self):
+        self.assertEqual(count_words("AI ai"), {"ai": 2})
+
+    def test_whitespace(self):
+        self.assertEqual(count_words("  ai\\n python  "), {"ai": 1, "python": 1})
+
+if __name__ == "__main__":
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TextStatsTests)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not result.wasSuccessful():
+        raise AssertionError("词频测试失败，请看上面的报告")
+~~~
+
+在 VS Code 里把代码另存为 test_textstats.py，放在 textstats.py 同一目录，终端运行 python -m unittest -v test_textstats。将导入换成你自己的统计函数，再加一个项目里真实遇到的边界输入。以后修改清洗规则或评测代码，沿用同样方法检查旧行为。([Python unittest](https://docs.python.org/3/library/unittest.html))`]
+ ],
  "S2-U03": [
+  ["进阶 · 科研脚本基础", "让别人用同一条命令复跑你的脚本", `把会变化的输入文件、输出位置和实验参数写成命令行参数。先把下面的示例保存成 inspect_input.py，在本机终端运行。Path 让参数解析后直接得到路径对象，--help 可以查看用法。
+
+~~~text
+import argparse
+import json
+from pathlib import Path
+
+def main():
+    parser = argparse.ArgumentParser(description="统计 UTF-8 文本的词数")
+    parser.add_argument("input", type=Path, help="输入文本")
+    parser.add_argument("--output", type=Path, required=True, help="输出 JSON")
+    args = parser.parse_args()
+    if args.input.resolve() == args.output.resolve():
+        parser.error("输出路径不能覆盖输入文件")
+    words = args.input.read_text(encoding="utf-8").split()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    result = {"input": str(args.input), "word_count": len(words)}
+    args.output.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+
+if __name__ == "__main__":
+    main()
+~~~
+
+~~~powershell
+python inspect_input.py --help
+python inspect_input.py sample.txt --output results/summary.json
+~~~
+
+复跑时换一个输入和输出文件名，检查原输入仍在、两份结果可以对照。把实际命令和依赖版本写进 README。进入模型实验后，继续记录数据版本、随机种子、划分和评测设置。固定种子有助于比较，但结果还依赖环境和计算实现。([Python argparse](https://docs.python.org/3/library/argparse.html))`],
   ["进阶 · 冬令营衔接", "在图上看懂 Git 分支与远程同步", `先用 S2 小项目做一个修改，查看 git status 和 git diff。接着在模拟仓库完成「主要 → 基础」和「远程 → Push & Pull」，每次先预测提交图会怎么变。能说清本地提交为什么还没有出现在远程，就可以回项目继续做。([Learn Git Branching](https://learngitbranching.js.org/?locale=zh_CN))`],
   ["工具实操 · Windows / VS Code", "终端能导入，VS Code 却报错", `在项目目录用 PowerShell 执行 \`py -3 -m venv .venv\`，用 \`.\\.venv\\Scripts\\python.exe -m pip install numpy\` 安装。写一个短脚本打印 \`sys.executable\`，再导入 NumPy 并打印 \`numpy.__version__\`。先用虚拟环境的 Python 直接运行，再用 VS Code 的“运行 Python 文件”运行。
 
