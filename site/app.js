@@ -218,6 +218,18 @@ function connectProgress(){
  return progressSyncRequest;
 }
 async function readProgressFromHelper(){const status=$("sync-status"),message=$("progress-message");status.textContent="正在连接…";if(message)message.textContent="正在读取本机学习记录…";try{const response=await fetch(progressUrl+"/api/progress",{method:"GET",cache:"no-store",credentials:"omit"});const data=await response.json();if(!response.ok||data.version!==1)throw new Error(data.error||"助手版本不匹配");progressData={records:data.records||{},events:data.events||[],updatedAt:data.updatedAt||null};progressConnected=true;storage.set("progress",JSON.stringify(progressData));status.textContent="已连接本机";status.className="sync-connected";status.title="本机助手已连接；学习记录只保存在本机。";$("connect-progress").textContent="刷新本机记录";refreshProgressViews();const hint=$("progress-message");if(hint)hint.textContent="已从本机读取学习记录；记录仍保存在电脑中。";return true;}catch(error){progressConnected=false;status.textContent="未连接";status.className="sync-disconnected";status.title="本机助手未连接。请运行个人学习/00_学习管理/进度同步助手/启动学习进度助手.bat 并允许浏览器访问本机网络；再点此按钮重试。课程仍可使用。";if(message)message.textContent=(error.message&&error.message!=="Failed to fetch"?error.message+"。":"连接失败。")+"请确认本机“学习进度同步助手”正在运行，并允许网站访问本机网络。课程阅读和练习仍可继续。";return false;}}
+function progressDraftKey(id){return id+":progress-draft";}
+function restoreProgressDraft(){
+ try{
+  const draft=JSON.parse(storage.get(progressDraftKey(current.id))||"null");
+  if(draft){$("progress-note").value=draft.note||"";$("progress-hint").value=draft.hintLevel||"";}
+ }catch{ /* ignore an unreadable browser draft */ }
+}
+$("reading").addEventListener("input",event=>{
+ if(current&&["progress-note","progress-hint"].includes(event.target.id)){
+  storage.set(progressDraftKey(current.id),JSON.stringify({note:$("progress-note").value,hintLevel:$("progress-hint").value}));
+ }
+});
 async function saveProgress(action){
  if(!current||progressSavePending)return;
  const lessonId=current.id,view=lessonView;
@@ -257,6 +269,8 @@ async function saveProgress(action){
   if(!response.ok)throw new Error(data.error||"保存失败");
   progressData=data.progress;
   storage.set("progress",JSON.stringify(progressData));
+  const draftKey=progressDraftKey(lessonId);
+  if(storage.get(draftKey)===JSON.stringify({note:rawNote,hintLevel}))storage.set(draftKey,"");
   if(lessonView===view&&$("progress-note").value===rawNote&&$("progress-hint").value===hintLevel){
    $("progress-note").value="";
    $("progress-hint").value="";
@@ -542,6 +556,7 @@ function show(id){
  $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+'<br><strong>本次要做到：</strong>'+esc(current.goal)+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+ restoreProgressDraft();
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const elective=current.id.includes("-E");
  const sequence=elective?course:course.filter(l=>!l.id.includes("-E"));
