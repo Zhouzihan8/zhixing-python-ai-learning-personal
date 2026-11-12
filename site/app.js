@@ -13,16 +13,17 @@ function readProgress(){try{const p=JSON.parse(storage.get("progress")||"{}");re
 let progressData=readProgress(),progressConnected=false;
 const progressLabels={learning:"学习中",practice:"需补练",independent:"初步掌握",reuse:"稳定掌握"};
 function inline(t){return esc(t).replace(/\x60([^\x60]+)\x60/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noreferrer">$1</a>');}
+function isSubtopic(title){return /^(?:小例子|小练习|示例\s*\d|衔接到实际代码|在 VS Code|在本机实践|本地实践|运行位置说明|怎样接到后面|本机实践与后续衔接)/.test(title);}
 function markdown(text,idPrefix="md"){
- let html="",paragraph=[],inCode=false,code=[],lang="",listType="",headingIndex=0;
- const flush=()=>{if(paragraph.length){html+="<p>"+inline(paragraph.join(" "))+"</p>";paragraph=[]}};
+ let html="",paragraph=[],inCode=false,code=[],lang="",listType="",headingIndex=0,previousParagraph="",currentHeading="",pythonExample=0;
+ const flush=()=>{if(paragraph.length){previousParagraph=paragraph.join(" ");html+="<p>"+inline(previousParagraph)+"</p>";paragraph=[]}};
  const close=()=>{if(listType){html+="</"+listType+">";listType=""}};
  for(const line of text.split("\n")){
   const fence=line.match(/^(?:~~~|\x60{3})(.*)$/);
-  if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang);html+='<div class="code-sample"><small class="code-context">'+(browserPython?"网页练习区 · 框架依赖请转到 VS Code":lang==="powershell"?"在本机 PowerShell 运行":lang==="sql"?"在对应数据库客户端运行":"示例片段") +'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+"</div>";inCode=false}continue;}
+  if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang),sql=lang.toLowerCase()==="sql";let purpose=(previousParagraph||currentHeading).replace(/\s+/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").trim();purpose=purpose.split(/[。！？]/)[0];if(purpose.length>76)purpose=purpose.slice(0,75)+"…";const codeTitle=browserPython?"示例 "+(++pythonExample)+(purpose?" · "+purpose:" · 看上方概念如何写成代码"):lang==="powershell"?"本机命令 · 在 PowerShell 运行":sql?"SQL 示例 · "+(purpose||"在数据库客户端运行"):"代码片段";let walkthrough="";if((browserPython||sql)&&window.CodeNotes){const defined=new Set([...raw.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)\s*(?:\(|:)/gm)].map(m=>m[1]));const classes=new Set([...raw.matchAll(/^\s*class\s+([A-Za-z_]\w*)/gm)].map(m=>m[1]));const lines=raw.split("\n").filter(row=>row.trim());walkthrough='<details class="code-walkthrough"><summary>需要逐行看时，展开代码说明</summary><ol>'+lines.map(row=>'<li><code>'+esc(row.trim())+'</code><p>'+inline(sql?window.CodeNotes.explainSqlLine(row):window.CodeNotes.explainLine(row,defined,classes))+'</p></li>').join("")+"</ol></details>";}html+='<div class="code-sample"><small class="code-context">'+esc(codeTitle)+(browserPython?" · 可在网页练习区运行":"")+'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+walkthrough+"</div>";previousParagraph="";inCode=false}continue;}
   if(inCode){code.push(line);continue;}
   const heading=line.match(/^(#{2,4})\s+(.*)$/);
-  if(heading){flush();close();const tag=heading[1].length===4?"h3":"h2",id=idPrefix==="lesson-topic"&&heading[1].length===3?' id="lesson-topic-'+(++headingIndex)+'"':"",numbered=/^\d+[.)]\s/.test(heading[2])?' data-numbered="true"':"";html+="<"+tag+id+numbered+">"+inline(heading[2])+"</"+tag+">";continue;}
+  if(heading){flush();close();currentHeading=heading[2];previousParagraph="";const nested=heading[1].length===4||isSubtopic(heading[2]),tag=nested?"h3":"h2",id=idPrefix==="lesson-topic"&&heading[1].length===3?' id="lesson-topic-'+(++headingIndex)+'"':"",numbered=/^\d+[.)]\s/.test(heading[2])?' data-numbered="true"':"";html+="<"+tag+id+numbered+">"+inline(heading[2])+"</"+tag+">";continue;}
   const ordered=line.match(/^\s*\d+[.)]\s+(.*)$/),unordered=line.match(/^\s*[-*]\s+(.*)$/);
   if(ordered||unordered){flush();const nextType=ordered?"ol":"ul";if(listType!==nextType){close();html+="<"+nextType+">";listType=nextType}html+="<li>"+inline((ordered||unordered)[1])+"</li>";continue;}
   if(!line.trim()){flush();close();continue;}close();paragraph.push(line);
@@ -188,15 +189,29 @@ function readingBody(lesson){
   '<h2 id="lesson-review" tabindex="-1">'+inline(review)+"</h2>"):content;
 }
 function lessonRoadmap(lesson){
- const headings=lessonHeadings(lesson.body).map((title,index)=>({title,id:index+1}));
+ const headings=lessonHeadings(lesson.body).map((title,index)=>({title,id:index+1,nested:isSubtopic(title)}));
  const terms=window.LessonStructure?.[lesson.id]||[];
+ let route="",subOpen=false,mainOpen=false;
+ for(const item of headings){
+  const link='<a href="#lesson-topic-'+item.id+'">'+esc(item.title)+'</a>';
+  if(item.nested&&mainOpen){if(!subOpen){route+='<ol class="topic-subroute">';subOpen=true;}route+='<li>'+link+'</li>';}
+  else{if(subOpen){route+="</ol>";subOpen=false;}if(mainOpen)route+="</li>";route+='<li>'+link;mainOpen=true;}
+ }
+ if(subOpen)route+="</ol>";
+ if(mainOpen)route+="</li>";
  return '<section class="lesson-roadmap" aria-label="本课学习导航">'+
   '<div class="roadmap-purpose"><span class="roadmap-label">这节课有什么用</span><p>'+esc(lesson.lead)+'</p></div>'+
   '<div class="roadmap-outcome"><span class="roadmap-label">学完后，你应该能</span><p>'+esc(lesson.goal)+'</p></div>'+
   '<p class="roadmap-prior"><strong>开始前会用到：</strong>'+esc(lesson.prior)+'</p>'+
-  '<div class="roadmap-sequence"><h2>这节课按什么顺序学</h2><ol class="topic-route">'+headings.map(item=>'<li><a href="#lesson-topic-'+item.id+'">'+esc(item.title)+'</a></li>').join("")+'</ol></div>'+
+  '<div class="roadmap-sequence"><h2>这节课按什么顺序学</h2><ol class="topic-route">'+route+'</ol></div>'+
   (terms.length?'<details class="lesson-glossary"><summary>有词不认识？展开看白话解释</summary><dl>'+terms.map(([term,definition])=>'<dt>'+esc(term)+'</dt><dd>'+esc(definition)+'</dd>').join("")+'</dl></details>':"")+
   '</section>';
+}
+function lessonPrimer(lesson){
+ const terms=window.LessonStructure?.[lesson.id]||[];
+ const chosen=lesson.id==="S1-U04"?["列表 list","元组 tuple","切片","索引"].map(name=>terms.find(item=>item[0]===name)).filter(Boolean):terms.slice(0,3);
+ if(!chosen.length)return "";
+ return '<section class="lesson-primer" aria-label="本课关键词"><p class="primer-title">读正文前，先认清本课关键词</p><ol>'+chosen.map(([term,definition])=>'<li><strong>'+esc(term)+'</strong><p>'+esc(definition)+'</p></li>').join("")+'</ol><p class="primer-hint">下面会按顺序继续解释，并用短例子带你看这些概念怎样工作。</p></section>';
 }
 function progressHintLabel(value){return ({none:"未用提示",partial:"使用了部分提示",full:"看过完整示例/答案"})[value]||"未记录提示情况";}
 function progressTime(value){const date=new Date(value);return Number.isNaN(date.valueOf())?value:date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}
@@ -576,7 +591,7 @@ function show(id){
  clearPracticeResult();
  $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
-  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p>'+lessonRoadmap(current)+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p>'+lessonRoadmap(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+lessonPrimer(current)+readingBody(current)+lessonExtras(current)+'</div>'+lessonWorkbench(current)+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
   $("reading").querySelectorAll(".topic-route a").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();const target=$(link.getAttribute("href").slice(1));if(!target)return;target.closest("details")?.setAttribute("open","");target.scrollIntoView({behavior:"smooth",block:"start"});}));
  restoreProgressDraft();
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});

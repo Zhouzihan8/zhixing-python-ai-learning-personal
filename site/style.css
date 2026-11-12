@@ -119,3 +119,27 @@ body[data-stage] .prose h2,body[data-stage] .prose h3{color:var(--stage-ink)}
 }
 .lesson-roadmap{margin:24px 0 28px;padding:20px;background:var(--stage-soft,#eef2eb);border:1px solid var(--line);border-radius:10px;color:var(--ink)}.roadmap-purpose,.roadmap-outcome{padding:12px 15px;background:rgba(255,255,255,.68);border-left:3px solid var(--stage-ink,var(--accent));border-radius:5px;margin-bottom:10px}.roadmap-outcome{border-left-color:#b6772d}.roadmap-label{font-size:13px;font-weight:700;color:var(--stage-ink,var(--accent))}.roadmap-purpose p,.roadmap-outcome p{margin:5px 0 0;font-size:15px;line-height:1.8}.roadmap-prior{font-size:13px;line-height:1.8;color:var(--muted);margin:12px 2px}.roadmap-sequence h2{font-size:16px;margin:16px 0 7px}.topic-route{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 22px;margin:0;padding:0 0 0 25px}.topic-route li{padding:3px 0 3px 2px;line-height:1.7}.topic-route a{font-size:13px;text-decoration:none}.topic-route a:hover{text-decoration:underline}.lesson-glossary{margin-top:14px;padding:10px 13px;background:rgba(255,255,255,.62);border-radius:6px}.lesson-glossary summary{font-weight:650}.lesson-glossary dl{margin:12px 0 2px}.lesson-glossary dt{margin-top:10px;font-weight:700;color:var(--stage-ink,var(--accent))}.lesson-glossary dd{margin:2px 0 0 1em;line-height:1.8;color:var(--ink)}#lesson-notes{counter-reset:lesson-topic}.prose{max-width:72ch}.prose h2{counter-increment:lesson-topic;scroll-margin-top:18px;padding-left:44px;position:relative}.prose h2::before{content:counter(lesson-topic,decimal-leading-zero);position:absolute;left:0;top:1px;font:12px/1.7 Consolas,monospace;color:var(--stage-ink,var(--accent));background:var(--stage-soft,#eef2eb);border-radius:4px;padding:1px 5px}.prose h3{margin-left:17px;padding-left:10px;border-left:2px solid var(--line);scroll-margin-top:18px}.prose p{max-width:72ch}.prose ol{padding-left:26px}.prose li{padding-left:3px;margin:5px 0}.lesson-walkthrough,.lesson-glossary{font-size:14px}.lesson-walkthrough p,.lesson-glossary dd{max-width:72ch}@media(max-width:650px){.lesson-roadmap{padding:15px;margin:18px 0 22px}.topic-route{grid-template-columns:1fr;gap:0}.roadmap-purpose p,.roadmap-outcome p{font-size:14px}.prose h2{padding-left:40px}.prose h3{margin-left:9px}}
 .prose h2[data-numbered]::before{display:none}
+
+/* The lecture stays open; only optional line-by-line code notes are collapsed. */
+.lesson-primer{margin:0 0 28px;padding:18px 20px;background:#f4f7f1;border:1px solid #dce6d9;border-radius:8px}
+.primer-title{margin:0 0 12px;font-size:16px;font-weight:700;color:var(--stage-ink,var(--accent))}
+.lesson-primer ol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px;margin:0;padding-left:24px}
+.lesson-primer li{padding:2px 4px 2px 2px}
+.lesson-primer li strong{font-size:15px}
+.lesson-primer li p{margin:4px 0 0;font-size:14px;line-height:1.75;color:var(--ink)}
+.primer-hint{margin:12px 0 0!important;font-size:12px!important;color:var(--muted)}
+.topic-subroute{display:block;list-style:lower-alpha;margin:3px 0 4px;padding-left:18px;border-left:1px solid var(--line)}
+.topic-subroute li{padding:1px 0 1px 4px!important}
+.topic-subroute a{font-size:12px!important;color:var(--muted)}
+.prose h3{font-size:16px;line-height:1.65;margin-top:20px;margin-bottom:8px;color:var(--stage-ink,var(--ink))}
+.code-sample{margin:14px 0 18px;padding-bottom:8px;border:1px solid var(--line);border-radius:7px;background:#fff;overflow:hidden}
+.code-sample pre{margin:0 10px 10px;max-height:34rem;overflow:auto;border-radius:5px}
+.code-context{font-weight:600;line-height:1.6}
+.code-walkthrough{margin:8px 10px 4px;padding:8px 10px;border-top:1px solid var(--line);background:#fafbf8}
+.code-walkthrough summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--stage-ink,var(--accent))}
+.code-walkthrough ol{margin:10px 0;padding-left:30px}
+.code-walkthrough li{padding:4px 5px 7px 2px;border-bottom:1px solid #edf0ea}
+.code-walkthrough li:last-child{border-bottom:0}
+.code-walkthrough li>code{display:block;overflow-wrap:anywhere;white-space:pre-wrap;font:12px/1.6 Consolas,"Microsoft YaHei",monospace;color:#24483a}
+.code-walkthrough li>p{margin:3px 0 0;font-size:12px;line-height:1.7;color:var(--muted)}
+@media(max-width:650px){.lesson-primer{padding:15px}.lesson-primer ol{grid-template-columns:1fr;gap:5px}.code-walkthrough{margin-inline:7px;padding-inline:7px}.code-sample pre{max-height:24rem}}
