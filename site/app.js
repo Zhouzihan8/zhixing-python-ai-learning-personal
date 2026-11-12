@@ -101,6 +101,10 @@ function lessonExtras(lesson){
    : '<section><h3>'+summary+'</h3>'+content+'</section>';
  }).join("")+'</section>';
 }
+function lessonNavLabel(id){
+ const status=progressData.records[id]?.status;
+ return id+(id.includes("-E")?" · 选修":"")+(status?" · "+status:"");
+}
 function nav(query=""){
  query=query.trim().toLowerCase();
  const filtered=course.filter(l=>{
@@ -116,7 +120,7 @@ function nav(query=""){
   let items=filtered.filter(l=>l.stage===s);
   if(!items.length)return "";
   let expanded=Boolean(query)||current?.stage===s,panel="stage-list-"+s;
-  return '<section class="stage"><button class="stage-toggle" data-stage="'+s+'" aria-expanded="'+expanded+'" aria-controls="'+panel+'">'+s+' / '+stages[s]+' ('+items.length+')</button><div id="'+panel+'" '+(!expanded?'hidden':"")+'>'+items.map(l=>{const status=progressData.records[l.id]?.status;return '<button class="lesson-link '+(l.id===current?.id?"active":"")+'" data-id="'+l.id+'"><span>'+l.id+(l.id.includes("-E")?" · 选修":"")+(status?' · '+esc(status):'')+'</span>'+esc(l.title)+'</button>'}).join("")+'</div></section>';
+  return '<section class="stage"><button class="stage-toggle" data-stage="'+s+'" aria-expanded="'+expanded+'" aria-controls="'+panel+'">'+s+' / '+stages[s]+' ('+items.length+')</button><div id="'+panel+'" '+(!expanded?'hidden':"")+'>'+items.map(l=>'<button class="lesson-link '+(l.id===current?.id?"active":"")+'" data-id="'+l.id+'"><span>'+esc(lessonNavLabel(l.id))+'</span>'+esc(l.title)+'</button>').join("")+'</div></section>';
  }).join("");
 }
 function setCourseOpen(open){document.body.classList.toggle("course-open",open);$("menu-toggle").setAttribute("aria-expanded",String(open));}
@@ -176,7 +180,35 @@ function readingBody(lesson){
 function progressHintLabel(value){return ({none:"未用提示",partial:"使用了部分提示",full:"看过完整示例/答案"})[value]||"未记录提示情况";}
 function progressTime(value){const date=new Date(value);return Number.isNaN(date.valueOf())?value:date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}
 function progressPanel(l){const record=progressData.records[l.id],status=record?.status||"尚未记录",statusClass={"学习中":"progress-learning","需补练":"progress-practice","初步掌握":"progress-initial","稳定掌握":"progress-stable"}[status]||"",canReuse=status==="初步掌握"||status==="稳定掌握",practiceCount=(progressData.events||[]).filter(event=>event.lessonId===l.id&&event.action==="practice").length,last=record?'<aside class="progress-last"><strong>上次记录 · '+esc(progressTime(record.updatedAt||""))+'</strong><p>'+esc(record.note||"没有填写依据或卡点。")+'</p><small>'+progressHintLabel(record.hintLevel)+(practiceCount?' · 本课已记录 '+practiceCount+' 次补练':'')+'</small></aside>':'';return '<section class="progress-card"><div class="progress-heading"><h2>本课学习记录</h2><span class="progress-badge '+statusClass+'">'+esc(status)+'</span></div><p>此记录会影响下一步推荐。网站读取状态、提示级别和补练次数；文字卡点留作下次继续分析，不以阅读或运行示例自动判定掌握。</p>'+last+'<label for="progress-note">本次依据或卡点 <span>补练写遇到的具体问题；独立完成写你自己做成了什么</span></label><textarea id="progress-note" rows="2" maxlength="1000" placeholder="例如：循环结束后列表长度不对，我还没定位是哪次更新出错"></textarea><label for="progress-hint">本次提示使用情况 <span>如标记独立完成或稳定复用，必须选择“未用提示”</span></label><select id="progress-hint"><option value="">选择本次提示使用情况</option><option value="none">未用提示</option><option value="partial">使用了部分提示</option><option value="full">看过完整示例/答案</option></select><div class="progress-actions"><button data-progress-action="learning">继续学习</button><button data-progress-action="practice">需要补练</button><button data-progress-action="independent">本次独立完成</button><button data-progress-action="reuse" '+(!canReuse?'disabled title="先记录一次未使用提示的独立完成，再在后续任务中独立复用。"':'')+'>后续任务复用成功</button></div><p class="progress-rule">“本次独立完成”和“后续任务复用成功”要求至少 8 个字的真实证据；使用了提示就记录为“需要补练”。</p><p id="progress-message" class="progress-message" aria-live="polite">'+(progressConnected?'已连接本机记录助手，数据只写入本机。':'先启动本机助手，再点右上角“同步本机记录”。')+'</p></section>';}
-function refreshProgressViews(){nav($("search").value);if(current){const note=$("reading").querySelector("#progress-note")?.value||"",hint=$("reading").querySelector("#progress-hint")?.value||"",panel=$("reading").querySelector(".progress-card");if(panel){panel.outerHTML=progressPanel(current);$("reading").querySelector("#progress-note").value=note;$("reading").querySelector("#progress-hint").value=hint;}}else showMap();}
+function refreshProgressViews(){
+ for(const link of $("course-nav").querySelectorAll(".lesson-link")){
+  link.firstElementChild.textContent=lessonNavLabel(link.dataset.id);
+ }
+ const reading=$("reading"),template=document.createElement("template");
+ if(current){
+  const panel=reading.querySelector(".progress-card");
+  if(!panel)return;
+  template.innerHTML=progressPanel(current);
+  const next=template.content.firstElementChild;
+  panel.querySelector(".progress-badge").replaceWith(next.querySelector(".progress-badge"));
+  panel.querySelector(".progress-last")?.remove();
+  const last=next.querySelector(".progress-last");
+  if(last)$("progress-note").labels[0].before(last);
+  const reuse=panel.querySelector('[data-progress-action="reuse"]');
+  const nextReuse=next.querySelector('[data-progress-action="reuse"]');
+  reuse.disabled=nextReuse.disabled;
+  reuse.title=nextReuse.title;
+  $("progress-message").textContent=next.querySelector("#progress-message").textContent;
+  return;
+ }
+ const overview=reading.querySelector(".progress-overview");
+ if(!overview)return;
+ template.innerHTML=window.LearningMap.render(course,stages,esc,storage.get("last"),progressData);
+ overview.replaceWith(template.content.querySelector(".progress-overview"));
+ const links=reading.querySelectorAll(".tree-lesson");
+ const updatedLinks=template.content.querySelectorAll(".tree-lesson");
+ links.forEach((link,index)=>link.firstElementChild.replaceWith(updatedLinks[index].firstElementChild));
+}
 let progressSyncRequest=null;
 let progressSavePending=false;
 function connectProgress(){
@@ -304,6 +336,7 @@ function showMap(){
  $("open-local-study").disabled=true;$("toggle-lab").hidden=true;nav($("search").value);window.scrollTo(0,0);
 }
 let lessonView=0;
+let runVisible=false;
 const practiceChecks={
  "S1-U02":{
   reviewHeading:"输入先得到字符串",
@@ -422,6 +455,14 @@ function clearPracticeResult(){
  $("practice-results").textContent="";
  $("practice-review").hidden=true;
 }
+function labDraftChanged(){
+ clearPracticeResult();
+ if(!runVisible)return;
+ runVisible=false;
+ $("run-status").textContent="代码或输入已修改，请重新运行。";
+ $("output").textContent="运行新草稿后，结果会显示在这里。";
+ files(current?.files||{});
+}
 async function checkPractice(){
  const lesson=current,spec=practiceChecks[lesson?.id];
  if(busy||!spec)return;
@@ -477,12 +518,13 @@ function replaceLabDraft(code, stdin=$("stdin").value){
  if($("undo-draft"))$("undo-draft").hidden=false;
  $("code").value=code;
  $("stdin").value=stdin;
- clearPracticeResult();
+ labDraftChanged();
  storage.set(current.id,code);
  storage.set(current.id+":stdin",stdin);
 }
 function show(id){
  lessonView++;
+ runVisible=false;
  const practice=id.endsWith("/practice");
  if(practice)id=id.slice(0,-"/practice".length);
  if(id==="map"||!id){showMap();return;}
@@ -556,7 +598,7 @@ $("reading").onclick=e=>{let tracked=e.target.closest("[data-progress-action]");
  }
  let open=e.target.closest("[data-open]");if(open){openWorkspace(open.dataset.open==="project");return;}let b=e.target.closest("[data-sample]");if(b){replaceLabDraft(samples[+b.dataset.sample]);$("run-status").textContent="已载入讲义片段。需要前文变量的例子请补齐上下文；PyTorch 等本机依赖请在本机学习站或 VS Code 中继续。";if(matchMedia("(max-width: 1180px)").matches)setLabOpen(true);$("code").focus();}};
 $("code").oninput=()=>{
- clearPracticeResult();
+ labDraftChanged();
  if(current)storage.set(current.id,$("code").value);
 };
 $("code").onkeydown=e=>{
@@ -570,11 +612,16 @@ $("code").onkeydown=e=>{
  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run()}
 };
 async function run(){
- if(busy||!current)return;setRunBusy(true);let id=current.id;$("run-status").textContent="Python 正在执行…";$("output").textContent="";
+ if(busy||!current)return;
+ setRunBusy(true);
+ runVisible=true;
+ $("run-status").textContent="Python 正在执行…";
+ $("output").textContent="";
  const view=lessonView,lesson=current,code=$("code").value,stdin=$("stdin").value;
+ files(lesson.files||{});
  try{
-  const data=await executeInPythonWorker({id,code,stdin,files:lesson.files||{}});
-  if(lessonView!==view)return;
+  const data=await executeInPythonWorker({id:lesson.id,code,stdin,files:lesson.files||{}});
+  if(lessonView!==view||!runVisible)return;
   $("output").textContent=[data.stdout,data.stderr,data.error].filter(Boolean).join("\n")
    ||"程序没有打印内容。表达式需要 print 才会显示。";
   const normalize=text=>String(text??"").replace(/\r\n/g,"\n").trimEnd();
@@ -592,7 +639,7 @@ async function run(){
   $("run-status").textContent=status;
   files(data.files||{});
  }
- catch(error){if(lessonView!==view)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{setRunBusy(false);}
+ catch(error){if(lessonView!==view||!runVisible)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{setRunBusy(false);}
 }
 $("run").onclick=run;$("reset").onclick=()=>{
  replaceLabDraft(current.starter,current.stdin||"");
@@ -604,7 +651,7 @@ if($("undo-draft"))$("undo-draft").onclick=()=>{
  const {code,stdin}=JSON.parse(saved);
  $("code").value=code;
  $("stdin").value=stdin;
- clearPracticeResult();
+ labDraftChanged();
  storage.set(current.id,code);
  storage.set(current.id+":stdin",stdin);
  storage.set(key,"");
@@ -624,7 +671,7 @@ $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(loca
 fetch("./content/course.json").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
 $("stdin").oninput=()=>{
- clearPracticeResult();
+ labDraftChanged();
  if(current)storage.set(current.id+":stdin",$("stdin").value);
 };
 async function openWorkspace(project=false,lesson=current){
