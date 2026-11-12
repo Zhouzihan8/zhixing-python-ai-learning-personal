@@ -13,20 +13,29 @@ function readProgress(){try{const p=JSON.parse(storage.get("progress")||"{}");re
 let progressData=readProgress(),progressConnected=false;
 const progressLabels={learning:"学习中",practice:"需补练",independent:"初步掌握",reuse:"稳定掌握"};
 function inline(t){return esc(t).replace(/\x60([^\x60]+)\x60/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noreferrer">$1</a>');}
-function markdown(text){
- let html="",paragraph=[],inCode=false,code=[],lang="",list=false;
+function markdown(text,idPrefix="md"){
+ let html="",paragraph=[],inCode=false,code=[],lang="",listType="",headingIndex=0;
  const flush=()=>{if(paragraph.length){html+="<p>"+inline(paragraph.join(" "))+"</p>";paragraph=[]}};
- const close=()=>{if(list){html+="</ul>";list=false}};
+ const close=()=>{if(listType){html+="</"+listType+">";listType=""}};
  for(const line of text.split("\n")){
   const fence=line.match(/^(?:~~~|\x60{3})(.*)$/);
   if(fence){flush();close();if(!inCode){inCode=true;lang=fence[1].trim();code=[]}else{let raw=code.join("\n"),i=samples.push(raw)-1;const browserPython=/^(python|py)(?:$|\s)/i.test(lang);html+='<div class="code-sample"><small class="code-context">'+(browserPython?"网页练习区 · 框架依赖请转到 VS Code":lang==="powershell"?"在本机 PowerShell 运行":lang==="sql"?"在对应数据库客户端运行":"示例片段") +'</small><pre>'+esc(raw)+'</pre>'+(/^(python|py)(?:$|\s)/i.test(lang)?'<button data-sample="'+i+'">在练习区修改并运行 ↗</button>':"")+"</div>";inCode=false}continue;}
   if(inCode){code.push(line);continue;}
   const heading=line.match(/^(#{2,4})\s+(.*)$/);
-  if(heading){flush();close();const tag=heading[1].length===4?"h3":"h2";html+="<"+tag+">"+inline(heading[2])+"</"+tag+">";continue;}
-  if(/^\s*[-*]\s/.test(line)){flush();if(!list){html+="<ul>";list=true}html+="<li>"+inline(line.replace(/^\s*[-*]\s/,""))+"</li>";continue;}
+  if(heading){flush();close();const tag=heading[1].length===4?"h3":"h2",id=idPrefix==="lesson-topic"&&heading[1].length===3?' id="lesson-topic-'+(++headingIndex)+'"':"",numbered=/^\d+[.)]\s/.test(heading[2])?' data-numbered="true"':"";html+="<"+tag+id+numbered+">"+inline(heading[2])+"</"+tag+">";continue;}
+  const ordered=line.match(/^\s*\d+[.)]\s+(.*)$/),unordered=line.match(/^\s*[-*]\s+(.*)$/);
+  if(ordered||unordered){flush();const nextType=ordered?"ol":"ul";if(listType!==nextType){close();html+="<"+nextType+">";listType=nextType}html+="<li>"+inline((ordered||unordered)[1])+"</li>";continue;}
   if(!line.trim()){flush();close();continue;}close();paragraph.push(line);
  }
  flush();close();if(inCode)html+='<pre>'+esc(code.join("\n"))+'</pre>';return html;
+}
+function lessonHeadings(text){
+ let inCode=false;const headings=[];
+ for(const line of text.split("\n")){
+  if(/^(?:~~~|\x60{3})/.test(line)){inCode=!inCode;continue;}
+  const heading=!inCode&&line.match(/^###\s+(.+)$/);if(heading)headings.push(heading[1]);
+ }
+ return headings;
 }
 function flow(labels,caption){
  const bw=(650-12*(labels.length-1))/labels.length;
@@ -147,26 +156,25 @@ const demoHeadings={
  "S6-U06":"4. 停止是系统行为的一部分"
 };
 function readingBody(lesson){
- let html=markdown(lesson.body);
  const study=window.LessonStudy?.[lesson.id];
- if(study?.shortBody){
-  return markdown(study.shortBody)+'<div id="lesson-visual" tabindex="-1">'+diagram(lesson)+
-   '</div><details class="lesson-reference"><summary>展开完整讲义</summary>'+html+'</details>';
- }
+ let html=markdown(lesson.body,"lesson-topic");
  for(const [title,label] of study?.foldSections||[]){
-  const sectionHeading="<h3>"+inline(title)+"</h3>";
-  const start=html.indexOf(sectionHeading);
+  const titleIndex=lessonHeadings(lesson.body).indexOf(title)+1;
+  if(titleIndex<1)continue;
+  const targetHeading="<h2 id=\"lesson-topic-"+titleIndex+"\">"+inline(title)+"</h2>";
+  const start=html.indexOf(targetHeading);
   if(start<0)continue;
-  const sectionStart=start+sectionHeading.length;
-  const following=html.indexOf("<h3>",sectionStart);
+  const sectionStart=start+targetHeading.length;
+  const following=html.indexOf("<h2",sectionStart);
   const end=following<0?html.length:following;
   html=html.slice(0,start)+'<details class="lesson-walkthrough"><summary>'+esc(label)+
    "</summary>"+html.slice(sectionStart,end)+"</details>"+html.slice(end);
  }
  const heading=study?.after||lesson.visualAfter||demoHeadings[lesson.id];
- const anchor=heading?"<h3>"+inline(heading)+"</h3>":"<h3>";
+ const headingIndex=lessonHeadings(lesson.body).indexOf(heading)+1;
+ const anchor=heading&&headingIndex>0?"<h2 id=\"lesson-topic-"+headingIndex+"\">"+inline(heading)+"</h2>":"";
  const at=html.indexOf(anchor);
- const next=at<0?-1:html.indexOf("<h3>",at+anchor.length);
+ const next=at<0||!anchor?-1:html.indexOf("<h2",at+anchor.length);
  const explanation=study?.explanation
   ? '<details class="lesson-walkthrough" id="lesson-walkthrough"><summary>详解 · '+esc(study.title)+'</summary><ol>'+
     study.explanation.map(step=>'<li>'+inline(step)+'</li>').join("")+
@@ -175,8 +183,20 @@ function readingBody(lesson){
  const visual='<div id="lesson-visual" tabindex="-1">'+explanation+diagram(lesson)+'</div>';
  const content=next<0?html+visual:html.slice(0,next)+visual+html.slice(next);
  const review=practiceChecks[lesson.id]?.reviewHeading;
- return review?content.replace("<h3>"+inline(review)+"</h3>",
-  '<h3 id="lesson-review" tabindex="-1">'+inline(review)+"</h3>"):content;
+ const reviewIndex=lessonHeadings(lesson.body).indexOf(review)+1;
+ return review?content.replace('<h2 id="lesson-topic-'+reviewIndex+'">'+inline(review)+"</h2>",
+  '<h2 id="lesson-review" tabindex="-1">'+inline(review)+"</h2>"):content;
+}
+function lessonRoadmap(lesson){
+ const headings=lessonHeadings(lesson.body).map((title,index)=>({title,id:index+1}));
+ const terms=window.LessonStructure?.[lesson.id]||[];
+ return '<section class="lesson-roadmap" aria-label="本课学习导航">'+
+  '<div class="roadmap-purpose"><span class="roadmap-label">这节课有什么用</span><p>'+esc(lesson.lead)+'</p></div>'+
+  '<div class="roadmap-outcome"><span class="roadmap-label">学完后，你应该能</span><p>'+esc(lesson.goal)+'</p></div>'+
+  '<p class="roadmap-prior"><strong>开始前会用到：</strong>'+esc(lesson.prior)+'</p>'+
+  '<div class="roadmap-sequence"><h2>这节课按什么顺序学</h2><ol class="topic-route">'+headings.map(item=>'<li><a href="#lesson-topic-'+item.id+'">'+esc(item.title)+'</a></li>').join("")+'</ol></div>'+
+  (terms.length?'<details class="lesson-glossary"><summary>有词不认识？展开看白话解释</summary><dl>'+terms.map(([term,definition])=>'<dt>'+esc(term)+'</dt><dd>'+esc(definition)+'</dd>').join("")+'</dl></details>':"")+
+  '</section>';
 }
 function progressHintLabel(value){return ({none:"未用提示",partial:"使用了部分提示",full:"看过完整示例/答案"})[value]||"未记录提示情况";}
 function progressTime(value){const date=new Date(value);return Number.isNaN(date.valueOf())?value:date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}
@@ -556,7 +576,8 @@ function show(id){
  clearPracticeResult();
  $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
-  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p><div class="carry"><strong>接着用：</strong>'+esc(current.prior)+(current.goal===current.task?'':'<br><strong>本次要做到：</strong>'+esc(current.goal))+'</div>'+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p>'+lessonRoadmap(current)+lessonWorkbench(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+readingBody(current)+lessonExtras(current)+'</div>'+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
+  $("reading").querySelectorAll(".topic-route a").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();const target=$(link.getAttribute("href").slice(1));if(!target)return;target.closest("details")?.setAttribute("open","");target.scrollIntoView({behavior:"smooth",block:"start"});}));
  restoreProgressDraft();
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const elective=current.id.includes("-E");
