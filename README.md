@@ -20,7 +20,7 @@
 
 ## 发布与更新
 
-GitHub Pages 由 `.github/workflows/pages.yml` 自动发布 `site/`。更新时，将个人站点源目录 `D:\学习\个人学习\07_个人站点托管源\dist` 中的网页文件和 `content/course.json` 同步到 `site/`，不要复制 `dist/downloads/`，然后提交并推送到 `main`。
+GitHub Pages 通过 `.github/workflows/pages.yml` 发布本仓库 `main` 分支的 `site/`。维护时先执行 `git pull --ff-only origin main`，在最新版本上编辑，提交并推送后检查 Pages 发布结果。D 盘对应的 Git 副本也用快进方式更新。旧托管目录中的 `dist/` 是历史产物，不能作为覆盖仓库 `site/` 的来源。实践脚本原稿保存在 `docs/practice-files.json`。
 
 GitHub Pages 与 ChatGPT Sites 使用不同域名，能作为相互独立的访问入口；网络运营商、地区策略或代理规则仍可能影响任何单一服务，无法承诺在所有网络环境下都可达。
 

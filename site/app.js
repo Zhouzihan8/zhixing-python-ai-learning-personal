@@ -227,7 +227,7 @@ function lessonRoadmap(lesson){
  const terms=window.LessonStructure?.[lesson.id]||[];
  let route="",subOpen=false,mainOpen=false;
  for(const item of headings){
-  const link='<a href="#lesson-topic-'+item.id+'">'+esc(item.title)+'</a>';
+  const link='<a href="#'+lesson.id+'/topic-'+item.id+'">'+esc(item.title)+'</a>';
   if(item.nested&&mainOpen){if(!subOpen){route+='<ol class="topic-subroute">';subOpen=true;}route+='<li>'+link+'</li>';}
   else{if(subOpen){route+="</ol>";subOpen=false;}if(mainOpen)route+="</li>";route+='<li>'+link;mainOpen=true;}
  }
@@ -430,7 +430,7 @@ const practiceChecks={
    {label:"0 分钟 + 15 分钟",stdin:"0\n15",expected:["15","0.25"]}
   ],
   check(result,example){
-   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim().replace(/^(?:分钟[：:]\s*)+/,"").trim());
+   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim().replace(/^(?:(?:分钟[：:]|今天学了多少分钟[？?])\s*)+/,"").trim());
    return lines.length===2&&lines.every((line,i)=>line===example.expected[i])
     ?"":"应依次输出 "+example.expected.join(" 和 ")+"。检查是否读了两行，以及第二行是否用了 .2f。";
   }
@@ -606,9 +606,18 @@ function replaceLabDraft(code, stdin=$("stdin").value){
  storage.set(current.id,code);
  storage.set(current.id+":stdin",stdin);
 }
+function scrollToLessonTopic(number,behavior="auto"){
+ const target=$("lesson-topic-"+number);
+ if(!target)return false;
+ target.closest("details")?.setAttribute("open","");
+ target.scrollIntoView({behavior,block:"start"});
+ return true;
+}
 function show(id){
  lessonView++;
  runVisible=false;
+ const topic=id.match(/\/topic-(\d+)$/);
+ if(topic)id=id.slice(0,topic.index);
  const practice=id.endsWith("/practice");
  if(practice)id=id.slice(0,-"/practice".length);
  if(id==="map"||!id){showMap();return;}
@@ -626,7 +635,7 @@ function show(id){
  $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
   $("reading").innerHTML='<div class="eyebrow">'+current.id+' / '+stages[current.stage]+'</div><h1>'+esc(current.title)+'</h1><p class="lead">'+esc(current.lead)+'</p>'+lessonRoadmap(current)+'<div id="lesson-notes" class="prose" tabindex="-1">'+lessonPrimer(current)+readingBody(current)+lessonExtras(current)+'</div>'+lessonWorkbench(current)+practiceGuide(current)+'<div id="lesson-self-check" class="check" tabindex="-1"><strong>自查与学习记录</strong><br>'+esc(current.check)+'</div>'+progressPanel(current)+'<details class="sources"><summary>本课来源与使用边界</summary><p>本课为针对你重写的讲义。标准库初始实验已执行核对；框架实践需按正文准备环境，不表示已经验证全部外部模型。</p>'+current.sources.map(s=>'<a href="'+esc(s)+'" target="_blank" rel="noreferrer">'+esc(s)+'</a><br>').join("")+'</details><div class="paging"><button id="previous">← 上一课</button><button id="next">下一课 →</button></div>';
-  $("reading").querySelectorAll(".topic-route a").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();const target=$(link.getAttribute("href").slice(1));if(!target)return;target.closest("details")?.setAttribute("open","");target.scrollIntoView({behavior:"smooth",block:"start"});}));
+  $("reading").querySelectorAll(".topic-route a").forEach(link=>link.addEventListener("click",event=>{if(event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();scrollToLessonTopic(link.hash.split("/topic-")[1], "smooth");}));
  restoreProgressDraft();
  $("code").value=storage.get(current.id)??current.starter;$("stdin").value=storage.get(current.id+":stdin")??current.stdin??"";if($("undo-draft"))$("undo-draft").hidden=!storage.get(current.id+":draft-undo");$("expected").textContent=current.expected;$("task").textContent=current.task;$("hint").textContent=current.hint;$("solution-code").textContent=current.solution;$("solution-code").hidden=true;$("solution").setAttribute("aria-expanded","false");$("output").textContent="先预测，再运行代码。";$("run-status").textContent="代码草稿保存在此浏览器；每次运行使用新的临时目录。";files(current.files||{});
  const elective=current.id.includes("-E");
@@ -640,6 +649,7 @@ function show(id){
  const refs=current.visualRefs||[];
  if(refs.length)$("reading").querySelector(".sources").insertAdjacentHTML("beforebegin",'<details class="sources"><summary>延伸可视化：看另一个具体演示</summary>'+refs.map(r=>'<p><a href="'+esc(r.url)+'" target="_blank" rel="noreferrer">'+esc(r.title)+'</a><br>'+esc(r.reason)+'</p>').join("")+'</details>');
 nav($("search").value);wireDiagram();storage.set("last",id);
+ if(topic&&scrollToLessonTopic(topic[1]))return;
  if(practice)$("lesson-practice")?.scrollIntoView();else window.scrollTo(0,0);
 }
 $("course-nav").onclick=e=>{
@@ -754,7 +764,7 @@ $("close-lab").onclick=closeLab;
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
-fetch("./content/course.json?v=practice-fixes").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");if(storage.get("local-progress-enabled")==="1"||progressData.updatedAt)connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
+fetch($("course-data-preload").href,{mode:"cors",credentials:"same-origin"}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");if(storage.get("local-progress-enabled")==="1"||progressData.updatedAt)connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
 $("stdin").oninput=()=>{
  labDraftChanged();
