@@ -396,7 +396,7 @@ function lessonWorkbench(lesson){
 }
 function practiceGuide(l){
  const p=l.practicePlan,j=l.project;if(!p||!j)return "";
- const scripts=Object.keys(l.practiceFiles||{}).filter(name=>name.endsWith(".py"));
+ const scripts=(l.practiceFileNames||[]).filter(name=>name.endsWith(".py"));
  const steps=window.LessonStudy?.[l.id]?.practice;
  const task=steps
   ? '<ol class="practice-steps">'+steps.map(step=>'<li>'+inline(step)+'</li>').join("")+'</ol>'
@@ -411,7 +411,7 @@ function practiceGuide(l){
   ? '<p><a href="vscode://file/'+encodeURI(localRoot+"/"+practiceFolders[optionalProject[0]]+
     "/03_项目/"+optionalProject[1])+'">'+optionalProject[2]+'</a></p>'
   : "";
- return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先在网页练习区完成本课示例和改动任务，再直接打开本机已有实践文件。</p>'+task+'<p><strong>文件怎么用：</strong>在本机目录中先读“开始实践.md”，从“起始示例.py”复制一份，保留自己的实现。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
+ return '<section id="lesson-practice" class="practice-guide" tabindex="-1"><h2>在 VS Code 完成这一步</h2><p>先理解讲义和示例，再按需打开本机实践文件。下方入口按站点所有者电脑的目录配置。</p>'+task+'<p><strong>文件怎么用：</strong>在本机目录先读“开始实践.md”，继续编辑已有的“我的练习.py”。需要从头重做时，把“起始示例.py”另存为一个新文件。'+(scripts.length?'本课另有 '+scripts.map(n=>'<code>'+esc(n)+'</code>').join('、')+'，按目录中的 README 准备环境，再复制一份改写。':'')+'</p><button data-open="lesson">在 VS Code 打开本课实践</button><p><strong>后面接着用：</strong>'+esc(p.transfer)+'</p><details><summary>阶段项目：'+esc(j.title)+' · '+esc(j.after)+' 后整合</summary><p>'+esc(j.carry)+'</p><p>阶段项目文件已在本机，直接打开动手版即可。</p><button data-open="project">在 VS Code 打开阶段项目</button></details>'+repoPractice+'</section>';
 }
 function showMap(){
  current=null;samples=[];document.body.classList.add("is-map");setLabOpen(false);setCourseOpen(false);
@@ -430,7 +430,7 @@ const practiceChecks={
    {label:"0 分钟 + 15 分钟",stdin:"0\n15",expected:["15","0.25"]}
   ],
   check(result,example){
-   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim());
+   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim().replace(/^(?:分钟[：:]\s*)+/,"").trim());
    return lines.length===2&&lines.every((line,i)=>line===example.expected[i])
     ?"":"应依次输出 "+example.expected.join(" 和 ")+"。检查是否读了两行，以及第二行是否用了 .2f。";
   }
@@ -574,7 +574,7 @@ async function checkPractice(){
   report.textContent=passed+" / "+spec.cases.length+" 组通过\n"+messages.join("\n");
   $("practice-review").hidden=passed===spec.cases.length;
  }catch(error){
-  if(sameDraft())report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message;
+  if(sameDraft())report.textContent=error.timeout?"检查超时。先用「运行 Python」定位卡住的位置。":"检查无法完成："+error.message+"。若浏览器无法加载 Python，可把当前代码复制到本机运行，再按本课检查说明核对输出。";
  }finally{setRunBusy(false);}
 }
 $("task").insertAdjacentHTML("afterend",
@@ -725,7 +725,7 @@ async function run(){
   $("run-status").textContent=status;
   files(data.files||{});
  }
- catch(error){if(lessonView!==view||!runVisible)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动；首次运行需要联网加载 Pyodide，请检查网络后重试。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{setRunBusy(false);}
+ catch(error){if(lessonView!==view||!runVisible)return;$("run-status").textContent=error.timeout?"执行超过 15 秒，已停止。长任务请在本机学习站或 VS Code 中运行。":"浏览器 Python 未能启动。首次运行需要访问 Pyodide CDN。网络受限时，可把当前代码复制到自己的 .py 文件，在本机 Python 或 VS Code 中运行。";$("output").textContent=error.message||"浏览器 Python 运行器暂时不可用。"}finally{setRunBusy(false);}
 }
 $("run").onclick=run;$("reset").onclick=()=>{
  replaceLabDraft(current.starter,current.stdin||"");
@@ -744,7 +744,7 @@ if($("undo-draft"))$("undo-draft").onclick=()=>{
  $("undo-draft").hidden=true;
  $("run-status").textContent="已恢复替换前的代码和输入。";
 };
-$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=()=>{if(!progressSavePending)connectProgress();};
+$("solution").onclick=()=>{const open=$("solution-code").hidden;$("solution-code").hidden=!open;$("solution").setAttribute("aria-expanded",String(open));};$("print").onclick=()=>window.print();$("connect-progress").onclick=()=>{if(!progressSavePending){storage.set("local-progress-enabled","1");connectProgress();}};
 function closeLab(){setLabOpen(false);$("toggle-lab").focus();}
 $("toggle-lab").onclick=()=>{
  if(document.body.classList.contains("lab-open"))closeLab();
@@ -754,7 +754,7 @@ $("close-lab").onclick=closeLab;
 $("open-local-study").onclick=()=>{if(current)window.open(localLessonUrl(current),"_blank","noopener,noreferrer");};
 
 $("search").oninput=()=>nav($("search").value);window.onhashchange=()=>show(location.hash.slice(1));
-fetch("./content/course.json?v=chapter-audit").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
+fetch("./content/course.json?v=practice-fixes").then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{course=data.lessons;$("runtime").textContent="Python · Pyodide";show(location.hash.slice(1)||"map");if(storage.get("local-progress-enabled")==="1"||progressData.updatedAt)connectProgress()}).catch(()=>{$("reading").innerHTML='<div class="notice"><h1>课程暂时无法读取</h1><p>请确认网页资源加载完成后刷新。浏览器运行 Python 首次需要联网加载 Pyodide。</p></div>';});
 
 $("stdin").oninput=()=>{
  labDraftChanged();

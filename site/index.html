@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="从 Python 基础、工程与科学计算，到深度学习、大模型、RAG 与 Agent 的循序渐进中文学习站。">
 <title>知行 · 我的 Python 与 AI 学习书桌</title>
+<link rel="preload" as="fetch" href="./content/course.json?v=practice-fixes" crossorigin="anonymous">
 <link rel="stylesheet" href="style.css?v=zero-beginner-clarity">
 </head>
 <body>
@@ -14,13 +15,13 @@
  <div class="sidebar-foot">从 Python 到大模型<br>在后面的任务中，继续使用前面的知识。</div>
 </aside>
 <div class="workspace">
- <header><span id="breadcrumb">课程正在载入</span><div><button id="home">知识树</button><button id="menu-toggle" aria-expanded="false" aria-controls="course-nav">课程目录</button><button id="toggle-lab" aria-expanded="false" aria-controls="lab">打开练习区</button><button id="print">打印讲义</button><button id="connect-progress" title="连接本机学习进度助手">同步本机记录</button><span id="sync-status" role="status" aria-live="polite">未连接</span><button id="open-local-study" disabled>本机 Python / VS Code</button></div></header>
+ <header><span id="breadcrumb">课程正在载入</span><div><button id="home">知识树</button><button id="menu-toggle" aria-expanded="false" aria-controls="course-nav">课程目录</button><button id="toggle-lab" aria-expanded="false" aria-controls="lab">打开练习区</button><button id="print">打印讲义</button><button id="connect-progress" title="站点所有者使用。启用后在此浏览器自动连接本机学习进度助手">同步本机记录</button><span id="sync-status" role="status" aria-live="polite">本机同步未启用</span><button id="open-local-study" disabled>本机 Python / VS Code</button></div></header>
  <main class="sheet">
   <article id="reading"><p>正在读取课程…</p></article>
   <aside class="lab" id="lab" aria-label="Python 实践区">
    <div class="lab-top"><span>动手试一试</span><span id="runtime">Python</span><button type="button" id="close-lab">返回讲义</button></div>
    <p class="lab-intro">先预测，再运行并改一个条件。需要本机 Python 或 PyTorch 时，直接使用电脑里已有的实践文件。</p>
-   <div class="local-practice"><button id="open-vscode">在 VS Code 打开本课实践</button><p id="vscode-status" aria-live="polite">实践文件已在本机。若浏览器询问，请允许打开 Visual Studio Code。</p><p class="practice-path-label">本机实践文件</p><code id="vscode-path"></code><a id="vscode-link" href="#">直接打开练习文件 ↗</a><a id="local-site-link" href="http://127.0.0.1:19867/" target="_blank" rel="noopener">在本机学习站运行这课 ↗</a></div>
+   <div class="local-practice"><button id="open-vscode">在 VS Code 打开本课实践</button><p id="vscode-status" aria-live="polite">这些入口按站点所有者电脑配置。其他设备可使用网页练习区，或将代码复制到自己的 VS Code。</p><p class="practice-path-label">本机实践文件</p><code id="vscode-path"></code><a id="vscode-link" href="#">直接打开练习文件 ↗</a><a id="local-site-link" href="http://127.0.0.1:19867/" target="_blank" rel="noopener">在本机学习站运行这课 ↗</a></div>
    <label for="code">Python 代码 <span>Tab 缩进 · Shift + Tab 返回上一项 · Esc 离开编辑区 · Ctrl / ⌘ + Enter 运行</span></label>
    <textarea id="code" spellcheck="false" aria-label="可编辑 Python 代码"></textarea>
    <label for="stdin">标准输入 <span>每行对应一次 input()</span></label><textarea id="stdin" rows="2" spellcheck="false"></textarea>
@@ -34,6 +35,6 @@
   </aside>
  </main>
 </div>
-<script src="knowledge-map.js"></script><script src="demos.js?v=whole-site-review"></script><script src="lesson-extras.js?v=chapter-audit"></script><script src="lesson-structure.js?v=zero-beginner-clarity"></script><script src="code-notes.js?v=zero-beginner-clarity"></script><script src="app.js?v=chapter-audit"></script>
+<script src="knowledge-map.js"></script><script src="demos.js?v=whole-site-review"></script><script src="lesson-extras.js?v=practice-fixes"></script><script src="lesson-structure.js?v=zero-beginner-clarity"></script><script src="code-notes.js?v=zero-beginner-clarity"></script><script src="app.js?v=practice-fixes"></script>
 </body>
 </html>
