@@ -46,7 +46,7 @@ function collectFiles(pyodide, path, files, root = path) {
 }
 
 self.onmessage = async event => {
-  const { id, code, stdin = "", files = {} } = event.data || {};
+  const { id, code, stdin = "", files = {}, hideInputPrompts = false } = event.data || {};
   let pyodide;
   let runDirectory;
   const output = { stdout: [], stderr: [] };
@@ -74,22 +74,27 @@ self.onmessage = async event => {
     pyodide.setStderr({ batched: text => output.stderr.push(text) });
 
     const namespace = await pyodide.runPythonAsync(
-      `def _zhixing_run(script_path, run_directory):
+      `def _zhixing_run(script_path, run_directory, hide_input_prompts):
+    import builtins
     import runpy
     import sys
 
     original_path = sys.path[:]
+    original_input = builtins.input
     sys.path.insert(0, run_directory)
     try:
+        if hide_input_prompts:
+            builtins.input = lambda prompt="": original_input()
         return runpy.run_path(script_path, run_name="__main__")
     finally:
+        builtins.input = original_input
         sys.path[:] = original_path
         for name, module in tuple(sys.modules.items()):
             origin = getattr(module, "__file__", None)
             if isinstance(origin, str) and origin.startswith(run_directory + "/"):
                 sys.modules.pop(name, None)
 
-_zhixing_run(${JSON.stringify(scriptPath)}, ${JSON.stringify(runDirectory)})`
+_zhixing_run(${JSON.stringify(scriptPath)}, ${JSON.stringify(runDirectory)}, ${hideInputPrompts ? "True" : "False"})`
     );
     namespace?.destroy?.();
     const generated = {};

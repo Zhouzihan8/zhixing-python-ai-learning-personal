@@ -361,7 +361,7 @@ async function saveProgress(action){
 function resetPythonWorker(error){clearTimeout(pythonTimer);clearTimeout(loadTimer);pythonWorker?.terminate();pythonWorker=null;pythonReady=null;const request=pythonRequest;pythonRequest=null;if(request)request.reject(error||new Error("浏览器 Python 已重置。"));}
 function ensurePythonWorker(){
  if(pythonReady)return pythonReady;
- pythonWorker=new Worker("./pyodide-worker.js",{type:"module"});
+ pythonWorker=new Worker("./pyodide-worker.js?v=input-prompts",{type:"module"});
  pythonReady=new Promise((resolve,reject)=>{
   pythonWorker.onmessage=event=>{
    const data=event.data||{};
@@ -423,14 +423,15 @@ let lessonView=0;
 let runVisible=false;
 const practiceChecks={
  "S1-U02":{
+  hideInputPrompts:true,
   reviewHeading:"输入先得到字符串",
-  note:"网页会分别输入 35 和 50、0 和 15。按两行输出合计分钟数和保留两位小数的小时数，例如 85 和 1.42。",
+  note:"网页会分别输入 35 和 50、0 和 15。检查时会自动忽略 input() 的提示文字。按两行输出合计分钟数和保留两位小数的小时数，例如 85 和 1.42。",
   cases:[
    {label:"35 分钟 + 50 分钟",stdin:"35\n50",expected:["85","1.42"]},
    {label:"0 分钟 + 15 分钟",stdin:"0\n15",expected:["15","0.25"]}
   ],
   check(result,example){
-   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim().replace(/^(?:(?:分钟[：:]|今天学了多少分钟[？?])\s*)+/,"").trim());
+   const lines=result.stdout.trim().split(/\r?\n/).map(line=>line.trim());
    return lines.length===2&&lines.every((line,i)=>line===example.expected[i])
     ?"":"应依次输出 "+example.expected.join(" 和 ")+"。检查是否读了两行，以及第二行是否用了 .2f。";
   }
@@ -563,7 +564,7 @@ async function checkPractice(){
    const inputs={...lesson.files};
    if(example.text!==undefined)inputs["sample.txt"]=example.text;
    const submitted=example.suffix?code+"\n\n"+example.suffix:code;
-   const result=await executeInPythonWorker({id:lesson.id,code:submitted,stdin:example.stdin??stdin,files:inputs});
+   const result=await executeInPythonWorker({id:lesson.id,code:submitted,stdin:example.stdin??stdin,files:inputs,hideInputPrompts:spec.hideInputPrompts});
    if(!sameDraft())return;
    const issue=result.exitCode===0?spec.check(result,example):
     (result.error||result.stderr||"程序运行失败").trim().split(/\r?\n/).at(-1);
@@ -610,6 +611,11 @@ function scrollToLessonTopic(number,behavior="auto"){
  const target=$("lesson-topic-"+number);
  if(!target)return false;
  target.closest("details")?.setAttribute("open","");
+ const focusTarget=target.matches("details")?target.querySelector("summary"):target;
+ if(focusTarget){
+  if(focusTarget===target&&!focusTarget.hasAttribute("tabindex"))focusTarget.tabIndex=-1;
+  focusTarget.focus({preventScroll:true});
+ }
  target.scrollIntoView({behavior,block:"start"});
  return true;
 }
