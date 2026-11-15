@@ -468,7 +468,9 @@ const practiceChecks={
  },
  "S2-U05":{
   reviewHeading:"广播从末尾对齐",
-  note:"广播加练：在代码框定义 add_bias(rows, bias)。每行是一条样本，bias 的每项对应一列特征。给每行加同一个偏置向量，返回二维列表。可以用列表循环，也可以用 NumPy 并以 .tolist() 返回。无需读取输入，检查会调用函数三次。",
+  buttonLabel:"检查广播加练",
+  reference:"def add_bias(rows, bias):\n    return [[value + offset for value, offset in zip(row, bias)]\n            for row in rows]",
+  note:"可选的广播加练。上面的点积任务可直接运行，结果应为 34。做加练时，在代码框定义 add_bias(rows, bias)，给每行加同一个偏置向量并返回二维列表。每行是一条样本，bias 的每项对应一列特征。可以用列表循环，也可以用 NumPy 并以 .tolist() 返回。检查会调用函数三次，无需读取输入。",
   cases:[
    {label:"3 行、2 列",rows:[[1,2],[3,4],[5,6]],bias:[10,20],expected:[[11,22],[13,24],[15,26]]},
    {label:"2 行、3 列",rows:[[1,2,3],[4,5,6]],bias:[10,20,30],expected:[[11,22,33],[14,25,36]]},
@@ -582,7 +584,8 @@ $("task").insertAdjacentHTML("afterend",
  '<div id="practice-check" hidden><p id="practice-check-note"></p>'+
  '<button type="button" id="check-practice">检查我的改动</button>'+
  '<p id="practice-results" role="status" style="white-space:pre-wrap"></p>'+
- '<button type="button" id="practice-review" hidden>回看相关讲解</button></div>');
+ '<button type="button" id="practice-review" hidden>回看相关讲解</button>'+
+ '<details id="practice-reference" hidden><summary>查看广播加练参考</summary><pre></pre></details></div>');
 $("check-practice").onclick=checkPractice;
 $("practice-review").onclick=()=>{
  const spec=practiceChecks[current?.id],study=window.LessonStudy?.[current?.id];
@@ -637,6 +640,9 @@ function show(id){
  const practiceCheck=practiceChecks[current.id];
  $("practice-check").hidden=!practiceCheck;
  $("practice-check-note").textContent=practiceCheck?.note||"";
+ $("check-practice").textContent=practiceCheck?.buttonLabel||"检查我的改动";
+ $("practice-reference").hidden=!practiceCheck?.reference;
+ $("practice-reference").querySelector("pre").textContent=practiceCheck?.reference||"";
  clearPracticeResult();
  $("lab").querySelectorAll("details[open]").forEach(details=>{details.open=false;});
  $("breadcrumb").textContent=stages[current.stage]+" / "+current.id+" · "+course.length+" 课（含选修）";
