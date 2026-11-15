@@ -28,7 +28,7 @@ function markdown(text,idPrefix="md"){
     const raw=code.join("\n");
     const python=/^(python|py)(?:$|\s)/i.test(lang);
     const sql=lang.toLowerCase()==="sql";
-    const localExample=python&&/^\s*(?:from|import)\s+(?:torch|transformers|numpy|pandas|matplotlib|fastapi|pydantic)\b/m.test(raw);
+    const localExample=python&&(/\s+local$/i.test(lang)||/^\s*(?:from|import)\s+(?:torch|transformers|numpy|pandas|matplotlib|fastapi|pydantic)\b/m.test(raw));
     let purpose=(previousParagraph||currentHeading).replace(/\s+/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").trim().split(/[。！？]/)[0];
     if(purpose.length>76)purpose=purpose.slice(0,75)+"…";
     const title=python?"示例 "+(++pythonExample)+(purpose?" · "+purpose:"")
@@ -225,16 +225,17 @@ function readingBody(lesson){
 function lessonRoadmap(lesson){
  const headings=lessonHeadings(lesson.body).map((title,index)=>({title,id:index+1,nested:isSubtopic(title)}));
  const terms=window.LessonStructure?.[lesson.id]||[];
+ const optional=new Set((window.LessonStudy?.[lesson.id]?.foldSections||[]).map(([title])=>title));
  let route="",subOpen=false,mainOpen=false;
  for(const item of headings){
-  const link='<a href="#'+lesson.id+'/topic-'+item.id+'">'+esc(item.title)+'</a>';
+  const link='<a href="#'+lesson.id+'/topic-'+item.id+'">'+esc(item.title)+'</a>'+
+   (optional.has(item.title)?' <small>按需</small>':"");
   if(item.nested&&mainOpen){if(!subOpen){route+='<ol class="topic-subroute">';subOpen=true;}route+='<li>'+link+'</li>';}
   else{if(subOpen){route+="</ol>";subOpen=false;}if(mainOpen)route+="</li>";route+='<li>'+link;mainOpen=true;}
  }
  if(subOpen)route+="</ol>";
  if(mainOpen)route+="</li>";
  return '<section class="lesson-roadmap" aria-label="本课学习导航">'+
-  '<div class="roadmap-purpose"><span class="roadmap-label">这节课有什么用</span><p>'+esc(lesson.lead)+'</p></div>'+
   '<div class="roadmap-outcome"><span class="roadmap-label">学完后，你应该能</span><p>'+esc(lesson.goal)+'</p></div>'+
   '<p class="roadmap-prior"><strong>开始前会用到：</strong>'+esc(lesson.prior)+'</p>'+
   '<div class="roadmap-sequence"><h2>这节课按什么顺序学</h2><ol class="topic-route">'+route+'</ol></div>'+

@@ -1,7 +1,7 @@
 /* Beginner-first concept cards for the personal course. */
 window.LessonStructure = {
   "S1-U01": [
-    ["解释器", "读取并执行 Python 代码的程序。可以把它和你熟悉的 C 编译器区分开：写代码的编辑器不是解释器。"],
+    ["解释器", "负责执行 Python 代码的程序。你键入代码时使用编辑器，运行代码时由解释器完成计算。"],
     ["脚本", "保存为 .py 文件的一段程序；终端命令会让 Python 解释器运行它。"],
     ["工作目录", "终端当前所在的文件夹。程序找相对路径时通常从这里开始找。"]
   ],
